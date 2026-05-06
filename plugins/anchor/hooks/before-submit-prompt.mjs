@@ -1,16 +1,58 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 
 const anchorHome = process.env.ANCHOR_HOME || path.join(os.homedir(), '.anchor');
 const repoSlug = process.cwd().split(path.sep).pop()?.replace(/[^a-z0-9]/gi, '_') || 'unknown';
 const statePath = path.join(anchorHome, repoSlug, 'state.json');
+const sessionPath = path.join(anchorHome, repoSlug, '.session.json');
 
 if (!existsSync(statePath)) process.exit(0);
+
+let state;
 try {
-  const state = JSON.parse(readFileSync(statePath, 'utf8'));
-  if (!state.optedIn) process.exit(0);
-  // TODO: inspect prompt for drift smells like "let’s also refactor"
-} catch {}
+  state = JSON.parse(readFileSync(statePath, 'utf8'));
+} catch { process.exit(0); }
+if (!state.optedIn) process.exit(0);
+
+const prompt = (process.argv.slice(2).join(' ') || '').toLowerCase();
+if (!prompt) process.exit(0);
+
+// Drift smell patterns from plan
+const driftSmells = [
+  /\blet[’']?s also\b/,
+  /\bquick (fix|aside|note)\b/,
+  /\bfor now\b/,
+  /\b(out of scope|placeholder|stub|todo follow-up)\b/,
+  /\brefactor(ing)? (everything|the whole|too much)\b/
+];
+
+const matched = driftSmells.find(r => r.test(prompt));
+if (matched && !sessionWarned()) {
+  console.error('[Anchor] drift smell detected in prompt: "' + matched.source.replace(/\\b/g,'') + '". Anchor will push back if this leads to scope creep or evasion.');
+  markWarned();
+}
+
+function sessionWarned() {
+  if (!existsSync(sessionPath)) return false;
+  try {
+    const s = JSON.parse(readFileSync(sessionPath, 'utf8'));
+    return !!s.promptWarned;
+  } catch { return false; }
+}
+
+function markWarned() {
+  let session = {};
+  if (existsSync(sessionPath)) {
+    try { session = JSON.parse(readFileSync(sessionPath, 'utf8')); } catch {}
+  }
+  session.promptWarned = true;
+  session.lastTs = Date.now();
+  try {
+    mkdirSync(path.dirname(sessionPath), { recursive: true });
+    writeFileSync(sessionPath, JSON.stringify(session, null, 2));
+  } catch {}
+}
+
 process.exit(0);

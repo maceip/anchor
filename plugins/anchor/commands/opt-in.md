@@ -14,3 +14,6 @@ Behavior:
 - Idempotent: running twice is safe.
 
 This is the entry point that activates all Anchor hooks, CLI commands, and the cloud agent for the repository.
+
+Implementation: ultimately invokes
+node plugins/anchor/scripts/anchor-cli.mjs opt-in [--repo-url URL] [--no-cloud]

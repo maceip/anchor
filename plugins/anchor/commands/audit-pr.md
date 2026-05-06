@@ -13,3 +13,6 @@ description: Runs the PR auditor + sidecar Drift Quotient on a specific PR numbe
 - Records the audit as a pr event in trajectory
 
 Missing GITHUB_TOKEN produces a clear no-op with guidance. Sidecar failures degrade to practical-only.
+
+Implementation: ultimately invokes
+node plugins/anchor/scripts/anchor-cli.mjs audit-pr <pr-number>

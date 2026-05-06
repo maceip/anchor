@@ -11,3 +11,6 @@ description: Marks state.json with optedIn:false. Leaves history and the durable
 - All hooks and commands become silent no-ops until re-opt-in
 
 Use this to temporarily pause Anchor without losing state.
+
+Implementation: ultimately invokes
+node plugins/anchor/scripts/anchor-cli.mjs opt-out

@@ -13,3 +13,6 @@ description: Syncs trajectory with git log since lastSyncedSha, re-evaluates pra
 - Returns a one-line summary of new events and any drift signals raised
 
 Safe to run frequently; cheap when nothing new.
+
+Implementation: ultimately invokes
+node plugins/anchor/scripts/anchor-cli.mjs sync

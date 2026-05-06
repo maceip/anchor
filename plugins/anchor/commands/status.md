@@ -16,3 +16,6 @@ Displays:
 - quarantine flag and any active alarms
 
 Missing tokens produce clear "no-op with message" output. Never fails the command.
+
+Implementation: ultimately invokes
+node plugins/anchor/scripts/anchor-cli.mjs status

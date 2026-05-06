@@ -16,3 +16,6 @@ With --regenerate:
 - Update state.lastPlanRegenAt
 
 Humans edit plan.md freely; regeneration is only for bootstrap or re-baselining.
+
+Implementation: ultimately invokes
+node plugins/anchor/scripts/anchor-cli.mjs plan [--regenerate]

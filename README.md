@@ -40,7 +40,7 @@ node scripts/validate-template.mjs
 - `/anchor-plan [--regenerate]`
 - `/anchor-opt-out`
 
-See `plugins/anchor/README.md` and `docs/architecture.md` for details.
+See `plugins/anchor/README.md` and `docs/architecture.md` (see plan for roadmap) for details.
 
 ## FAQ
 

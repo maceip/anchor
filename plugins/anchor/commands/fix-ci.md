@@ -13,3 +13,6 @@ description: Triggers the per-repo cloud agent (via ci-fixer skill) to diagnose 
 - Exits non-zero only on real errors; missing token produces clear message
 
 Red CI blocks all other Anchor work until resolved.
+
+Implementation: ultimately invokes
+node plugins/anchor/scripts/anchor-cli.mjs fix-ci
