@@ -1,0 +1,18 @@
+{
+  "install": "pnpm i || npm i",
+  "terminals": [
+    {
+      "name": "Anchor daemon",
+      "command": "node plugins/anchor/scripts/anchor-cli.mjs daemon"
+    }
+  ],
+  "env": {
+    "ANCHOR_HOME": "${HOME}/.anchor",
+    "ANCHOR_MODEL_ID": "composer-2"
+  },
+  "notes": [
+    "Set CURSOR_API_KEY to attach the durable Cursor cloud agent.",
+    "Set GITHUB_TOKEN to enable GitHub PR and Actions operations.",
+    "The daemon is optional; hooks and commands work without a long-running process."
+  ]
+}

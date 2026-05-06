@@ -1,0 +1,22 @@
+{
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@octokit/rest": "^21",
+    "dotenv": "^16"
+  },
+  "peerDependencies": {
+    "@cursor/sdk": ">=1.0.12"
+  },
+  "peerDependenciesMeta": {
+    "@cursor/sdk": {
+      "optional": true
+    }
+  },
+  "scripts": {
+    "validate": "cd ../.. && node scripts/validate-template.mjs",
+    "test": "node --test scripts/lib/*.test.mjs"
+  }
+}

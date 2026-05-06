@@ -9,10 +9,10 @@ Per-repo cloud agent that keeps CI green, maintains trajectory memory, and pushe
 - `agents/`: anchor-custodian, ci-fixer, pr-enforcer, plan-archaeologist
 - `commands/`: anchor-* command frontmatter files
 - `hooks/`: hooks.json and Node shims for session telemetry and drift warnings
-- `scripts/`: (Phase 2 planned: anchor-cli.mjs, CLI subcommands, lib helpers, hook shims)
-- `mcp/`: (Phase 2 planned: anchor-server for cloud agent tools)
+- `scripts/`: anchor-cli.mjs, CLI subcommands, lib helpers, hook shims
+- `mcp/`: anchor-server for cloud agent tools
 - `sidecar/`: (Phase 3 planned: anchor_drift_quotient Python Drift Quotient pipeline)
-- `templates/`: (Phase 2 planned: environment.json.example for install)
+- `templates/`: environment.json.example for install
 
 ## Install / Opt-in
 
