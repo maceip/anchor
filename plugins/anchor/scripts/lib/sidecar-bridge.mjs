@@ -57,7 +57,8 @@ async function runPythonSidecar(payload, env) {
   child.stderr.on("data", (chunk) => { stderr += chunk; });
   child.stdin.end(JSON.stringify(payload));
 
-  const code = await new Promise((resolve) => {
+  const code = await new Promise((resolve, reject) => {
+    child.on("error", reject);
     child.on("close", resolve);
   });
   if (code !== 0) {

@@ -4,10 +4,10 @@ import { compose, diffStatsFromPatch, evasionSmell, infraRatHoleSmell, planDrift
 import { evaluateTelemetry, getSidecarReport } from "./sidecar-bridge.mjs";
 import { recordEvent } from "./trajectory.mjs";
 
-export async function auditPR({ slug, repo, number, plan = "", branchName = "", postComment = true, env = process.env } = {}) {
-  const prResult = await getPR(repo, number, { env });
+export async function auditPR({ slug, repo, number, plan = "", branchName = "", postComment = true, env = process.env, githubClient = null } = {}) {
+  const prResult = await getPR(repo, number, { env, client: githubClient });
   if (!prResult.ok) return prResult;
-  const diffResult = await getPRDiff(repo, number, { env });
+  const diffResult = await getPRDiff(repo, number, { env, client: githubClient });
   if (!diffResult.ok) return diffResult;
 
   const pr = prResult.pr;
@@ -51,7 +51,7 @@ export async function auditPR({ slug, repo, number, plan = "", branchName = "", 
   await recordEvent(slug, "pr", { number: Number(number), severity: report.severity, signals: report.signals }, env);
 
   if (postComment && ["medium", "high", "quarantine"].includes(report.severity)) {
-    const comment = await commentOnPR(repo, number, report.message, { env });
+    const comment = await commentOnPR(repo, number, report.message, { env, client: githubClient });
     return { ok: true, report, comment };
   }
   return { ok: true, report };

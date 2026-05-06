@@ -1,4 +1,4 @@
-import { appendFile, readFile } from "node:fs/promises";
+import { appendFile, readFile, truncate } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { trajectoryPath } from "./paths.mjs";
 import { ensureStateDirs, readState, writeState } from "./state.mjs";
@@ -14,6 +14,7 @@ export async function recordEvent(slug, type, data = {}, env = process.env) {
 export async function tail(slug, limit = 5, env = process.env) {
   const file = trajectoryPath(slug, env);
   if (!existsSync(file)) return [];
+  await recoverTrailingPartialLine(file);
   const raw = await readFile(file, "utf8");
   return raw
     .split("\n")
@@ -26,6 +27,20 @@ export async function tail(slug, limit = 5, env = process.env) {
         return { ts: null, type: "corrupt", data: { line } };
       }
     });
+}
+
+export async function recoverTrailingPartialLine(file) {
+  const raw = await readFile(file, "utf8");
+  if (!raw || raw.endsWith("\n")) return false;
+  const lastNewline = raw.lastIndexOf("\n");
+  const lastLine = lastNewline === -1 ? raw : raw.slice(lastNewline + 1);
+  try {
+    JSON.parse(lastLine);
+    return false;
+  } catch {
+    await truncate(file, Math.max(0, lastNewline + 1));
+    return true;
+  }
 }
 
 export async function sync(slug, { cwd = process.cwd(), env = process.env } = {}) {

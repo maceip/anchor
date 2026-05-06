@@ -10,6 +10,7 @@ export class MissingGitHubTokenError extends Error {
 
 export async function getToken(env = process.env) {
   if (env.GITHUB_TOKEN) return env.GITHUB_TOKEN;
+  if (env.ANCHOR_DISABLE_GH_TOKEN === "1") return null;
   try {
     return execFileSync("gh", ["auth", "token"], {
       encoding: "utf8",
@@ -35,12 +36,12 @@ export function normalizeRepo(repo) {
   return null;
 }
 
-export async function listFailingRuns(repo, { env = process.env } = {}) {
+export async function listFailingRuns(repo, { env = process.env, client = null } = {}) {
   const target = normalizeRepo(repo);
   if (!target) return { ok: false, message: "Could not determine GitHub repo." };
   try {
-    const client = await octokit(env);
-    const response = await client.actions.listWorkflowRunsForRepo({
+    const api = client || await octokit(env);
+    const response = await api.actions.listWorkflowRunsForRepo({
       owner: target.owner,
       repo: target.repo,
       status: "completed",
@@ -53,12 +54,12 @@ export async function listFailingRuns(repo, { env = process.env } = {}) {
   }
 }
 
-export async function getRunLogs(repo, runId, { env = process.env } = {}) {
+export async function getRunLogs(repo, runId, { env = process.env, client = null } = {}) {
   const target = normalizeRepo(repo);
   if (!target) return { ok: false, message: "Could not determine GitHub repo." };
   try {
-    const client = await octokit(env);
-    const response = await client.actions.downloadWorkflowRunLogs({
+    const api = client || await octokit(env);
+    const response = await api.actions.downloadWorkflowRunLogs({
       owner: target.owner,
       repo: target.repo,
       run_id: runId
@@ -69,36 +70,36 @@ export async function getRunLogs(repo, runId, { env = process.env } = {}) {
   }
 }
 
-export async function listOpenPRs(repo, { env = process.env } = {}) {
+export async function listOpenPRs(repo, { env = process.env, client = null } = {}) {
   const target = normalizeRepo(repo);
   if (!target) return { ok: false, message: "Could not determine GitHub repo." };
   try {
-    const client = await octokit(env);
-    const response = await client.pulls.list({ owner: target.owner, repo: target.repo, state: "open" });
+    const api = client || await octokit(env);
+    const response = await api.pulls.list({ owner: target.owner, repo: target.repo, state: "open" });
     return { ok: true, prs: response.data };
   } catch (error) {
     return noOpOrError(error);
   }
 }
 
-export async function getPR(repo, number, { env = process.env } = {}) {
+export async function getPR(repo, number, { env = process.env, client = null } = {}) {
   const target = normalizeRepo(repo);
   if (!target) return { ok: false, message: "Could not determine GitHub repo." };
   try {
-    const client = await octokit(env);
-    const response = await client.pulls.get({ owner: target.owner, repo: target.repo, pull_number: Number(number) });
+    const api = client || await octokit(env);
+    const response = await api.pulls.get({ owner: target.owner, repo: target.repo, pull_number: Number(number) });
     return { ok: true, pr: response.data };
   } catch (error) {
     return noOpOrError(error);
   }
 }
 
-export async function getPRDiff(repo, number, { env = process.env } = {}) {
+export async function getPRDiff(repo, number, { env = process.env, client = null } = {}) {
   const target = normalizeRepo(repo);
   if (!target) return { ok: false, message: "Could not determine GitHub repo." };
   try {
-    const client = await octokit(env);
-    const response = await client.request("GET /repos/{owner}/{repo}/pulls/{pull_number}", {
+    const api = client || await octokit(env);
+    const response = await api.request("GET /repos/{owner}/{repo}/pulls/{pull_number}", {
       owner: target.owner,
       repo: target.repo,
       pull_number: Number(number),
@@ -110,12 +111,12 @@ export async function getPRDiff(repo, number, { env = process.env } = {}) {
   }
 }
 
-export async function commentOnPR(repo, number, body, { env = process.env } = {}) {
+export async function commentOnPR(repo, number, body, { env = process.env, client = null } = {}) {
   const target = normalizeRepo(repo);
   if (!target) return { ok: false, message: "Could not determine GitHub repo." };
   try {
-    const client = await octokit(env);
-    const response = await client.issues.createComment({
+    const api = client || await octokit(env);
+    const response = await api.issues.createComment({
       owner: target.owner,
       repo: target.repo,
       issue_number: Number(number),

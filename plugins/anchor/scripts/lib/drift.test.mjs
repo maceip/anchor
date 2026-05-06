@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { compose, evasionSmell, infraRatHoleSmell, verbositySmell } from "./drift.mjs";
+import { compose, evasionSmell, infraRatHoleSmell, planDriftSmell, verbositySmell } from "./drift.mjs";
 
 test("evasion smell flags placeholder language", () => {
   const result = evasionSmell({ description: "This is a placeholder for now; follow-up later." });
@@ -24,4 +24,10 @@ test("compose severity thresholds", () => {
   assert.equal(compose({ signals: [] }).severity, "none");
   assert.equal(compose({ signals: [{ name: "x", score: 0.6, evidence: [] }] }).severity, "medium");
   assert.equal(compose({ sidecar: { quarantine: true } }).severity, "quarantine");
+});
+
+test("plan drift flags touched areas outside active plan", () => {
+  const plan = "## Active phase\n\nBuild auth screens";
+  const result = planDriftSmell({ files: ["billing/invoice.js", "payments/card.js", "auth/login.js"], plan });
+  assert.equal(result.score > 0.5, true);
 });

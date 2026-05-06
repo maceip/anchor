@@ -4,7 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 
 const anchorHome = process.env.ANCHOR_HOME || path.join(os.homedir(), '.anchor');
-const repoSlug = process.cwd().split(path.sep).pop()?.replace(/[^a-z0-9]/gi, '_') || 'unknown';
+const repoSlug = process.cwd().split(path.sep).pop()?.replace(/[^a-z0-9._-]/gi, '_') || 'unknown';
 const statePath = path.join(anchorHome, repoSlug, 'state.json');
 
 if (!existsSync(statePath)) {

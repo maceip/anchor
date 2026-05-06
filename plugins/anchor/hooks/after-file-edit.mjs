@@ -5,7 +5,7 @@ import os from 'node:os';
 import { execSync } from 'node:child_process';
 
 const anchorHome = process.env.ANCHOR_HOME || path.join(os.homedir(), '.anchor');
-const repoSlug = process.cwd().split(path.sep).pop()?.replace(/[^a-z0-9]/gi, '_') || 'unknown';
+const repoSlug = process.cwd().split(path.sep).pop()?.replace(/[^a-z0-9._-]/gi, '_') || 'unknown';
 const statePath = path.join(anchorHome, repoSlug, 'state.json');
 const sessionPath = path.join(anchorHome, repoSlug, '.session.json');
 

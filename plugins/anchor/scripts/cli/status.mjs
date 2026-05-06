@@ -1,10 +1,13 @@
-import { detectRepoUrl, resolveSlug } from "../lib/paths.mjs";
+import { readdir } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { anchorHome, detectRepoUrl, resolveSlug, statePath } from "../lib/paths.mjs";
 import { readPlan, activePhase } from "../lib/plan.mjs";
 import { readState } from "../lib/state.mjs";
 import { tail } from "../lib/trajectory.mjs";
 
 export async function run() {
-  const slug = resolveSlug({ repoUrl: detectRepoUrl() });
+  const slug = await resolveStatusSlug();
   const state = await readState(slug);
   if (!state?.optedIn) return `Anchor is not opted in for ${slug}.`;
   const plan = await readPlan(slug);
@@ -23,4 +26,18 @@ export async function run() {
     "trajectoryTail:",
     ...events.map((event) => `- ${event.ts} ${event.type} ${JSON.stringify(event.data)}`)
   ].join("\n");
+}
+
+async function resolveStatusSlug(env = process.env) {
+  const detected = resolveSlug({ repoUrl: detectRepoUrl() });
+  if (existsSync(statePath(detected, env))) return detected;
+  try {
+    const entries = await readdir(anchorHome(env), { withFileTypes: true });
+    const slugs = entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .filter((slug) => existsSync(path.join(anchorHome(env), slug, "state.json")));
+    if (slugs.length === 1) return slugs[0];
+  } catch {}
+  return detected;
 }

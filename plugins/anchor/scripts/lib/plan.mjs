@@ -22,6 +22,8 @@ Bootstrap Anchor state and local tooling.
 - Anchor state lives under ~/.anchor/<repo-slug>/.
 `;
 
+export const REQUIRED_PLAN_SECTIONS = ["Mission", "Phases", "Active phase", "Recent decisions"];
+
 export async function ensurePlan(slug, env = process.env) {
   const file = planPath(slug, env);
   if (existsSync(file)) return false;
@@ -47,4 +49,36 @@ export function activePhase(markdown) {
   if (!match) return null;
   const text = match[1].trim();
   return text || null;
+}
+
+export function hasRequiredSections(markdown) {
+  return REQUIRED_PLAN_SECTIONS.every((section) => new RegExp(`^## ${escapeRegExp(section)}\\s*$`, "m").test(markdown || ""));
+}
+
+export function serializePlan({ mission, phases, activePhase: phase, recentDecisions }) {
+  return `## Mission
+
+${mission || ""}
+
+## Phases
+
+${listify(phases)}
+
+## Active phase
+
+${phase || ""}
+
+## Recent decisions
+
+${listify(recentDecisions)}
+`;
+}
+
+function listify(value) {
+  if (Array.isArray(value)) return value.map((entry) => `- ${entry}`).join("\n");
+  return value || "";
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

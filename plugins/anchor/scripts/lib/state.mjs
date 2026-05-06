@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { cacheDir, planPath, runsDir, stateDir, statePath } from "./paths.mjs";
 
@@ -58,8 +58,11 @@ export function normalizeState(state, slug = state?.slug) {
 
 export async function writeState(slug, state, env = process.env) {
   await ensureStateDirs(slug, env);
-  const normalized = normalizeState(state, slug);
-  await writeFile(statePath(slug, env), `${JSON.stringify(normalized, null, 2)}\n`);
+  const normalized = sanitizeState(normalizeState(state, slug));
+  const file = statePath(slug, env);
+  const tempFile = `${file}.${process.pid}.${Date.now()}.tmp`;
+  await writeFile(tempFile, `${JSON.stringify(normalized, null, 2)}\n`);
+  await rename(tempFile, file);
   return normalized;
 }
 
@@ -75,4 +78,18 @@ export async function ensurePlanFile(slug, markdown, env = process.env) {
   await ensureStateDirs(slug, env);
   await writeFile(file, markdown);
   return true;
+}
+
+export function sanitizeState(value) {
+  if (Array.isArray(value)) return value.map((entry) => sanitizeState(entry));
+  if (!value || typeof value !== "object") return value;
+  const sanitized = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (/api[_-]?key|token|secret/i.test(key)) {
+      sanitized[key] = null;
+    } else {
+      sanitized[key] = sanitizeState(entry);
+    }
+  }
+  return sanitized;
 }
