@@ -1,6 +1,6 @@
 # Anchor Architecture
 
-This document describes the data flow for the Anchor anti-drift plugin. Implementation is phased; the current code includes the local Node CLI, state stores, hooks, drift heuristics, and a minimal MCP server. Cursor cloud agent, GitHub mutation, and sidecar paths are token-gated or planned as described in `plan`.
+This document describes the data flow for the Anchor anti-drift plugin. Implementation is phased; the current code includes the local Node CLI, state stores, hooks, practical drift heuristics, the Python Drift Quotient sidecar, and a minimal MCP server. Cursor cloud agent and GitHub mutation paths remain token-gated as described in `plan`.
 
 ## Core flows
 

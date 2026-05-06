@@ -1,9 +1,6 @@
-"""Anchor Drift Quotient sidecar package.
+"""Anchor Drift Quotient sidecar package."""
 
-Phase 2 provides the importable package shape. Phase 3 fills in the full
-statistical pipeline.
-"""
+from .pipeline import AutonomousDriftPipeline, evaluate
+from .protocols import GitArtifactTelemetry, PipelinePhase
 
-from .pipeline import evaluate
-
-__all__ = ["evaluate"]
+__all__ = ["AutonomousDriftPipeline", "GitArtifactTelemetry", "PipelinePhase", "evaluate"]

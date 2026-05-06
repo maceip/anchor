@@ -37,11 +37,26 @@ export async function sync(slug, { cwd = process.cwd(), env = process.env } = {}
   const commits = commitsSince(state.lastSyncedSha, cwd);
   for (const commit of commits) {
     await recordEvent(slug, "commit", commit, env);
+    try {
+      const { evaluateTelemetry } = await import("./sidecar-bridge.mjs");
+      await evaluateTelemetry(slug, {
+        commitHash: commit.sha,
+        commitMessage: commit.subject,
+        ciBuildStatus: "SUCCESS",
+        linesOfCodeChanged: 0,
+        testBytesChanged: 0,
+        srcBytesChanged: 0,
+        newImports: []
+      }, env);
+    } catch {
+      // Sidecar telemetry must not block local sync.
+    }
   }
 
   const sha = headSha(cwd);
   if (sha && (commits.length > 0 || !state.lastSyncedSha)) {
-    await writeState(slug, { ...state, lastSyncedSha: sha }, env);
+    const latestState = (await readState(slug, env)) || state;
+    await writeState(slug, { ...latestState, lastSyncedSha: sha }, env);
   }
 
   return { synced: commits.length, headSha: sha };

@@ -1,7 +1,7 @@
 import { activePhase } from "./plan.mjs";
 import { getPR, getPRDiff, commentOnPR } from "./github.mjs";
 import { compose, diffStatsFromPatch, evasionSmell, infraRatHoleSmell, planDriftSmell, verbositySmell } from "./drift.mjs";
-import { getSidecarReport } from "./sidecar-bridge.mjs";
+import { evaluateTelemetry, getSidecarReport } from "./sidecar-bridge.mjs";
 import { recordEvent } from "./trajectory.mjs";
 
 export async function auditPR({ slug, repo, number, plan = "", branchName = "", postComment = true, env = process.env } = {}) {
@@ -14,7 +14,29 @@ export async function auditPR({ slug, repo, number, plan = "", branchName = "", 
   const patch = diffResult.diff || "";
   const stats = diffStatsFromPatch(patch);
   const description = [pr.title, pr.body || ""].join("\n\n");
-  const sidecar = await getSidecarReport(slug, env);
+  let sidecar = await getSidecarReport(slug, env);
+  try {
+    const evaluated = await evaluateTelemetry(slug, {
+      commitHash: pr.head?.sha || `pr-${number}`,
+      commitMessage: pr.title || "",
+      diffPayload: patch,
+      ciBuildStatus: "SUCCESS",
+      testBytesChanged: stats.files.filter((file) => /(^|\/)(test|tests|spec|__tests__)(\/|$)|\.(test|spec)\./i.test(file)).length,
+      srcBytesChanged: Math.max(0, stats.additions + stats.deletions),
+      linesOfCodeChanged: stats.additions + stats.deletions,
+      newImports: extractImports(patch)
+    }, env);
+    if (evaluated.ok) {
+      sidecar = {
+        ...sidecar,
+        ...evaluated.report,
+        quarantine: evaluated.report?.severity === "quarantine",
+        report: evaluated.report
+      };
+    }
+  } catch {
+    // Sidecar failure does not block practical PR audit.
+  }
   const signals = [
     named("verbosity", verbositySmell({ description, diffStats: stats })),
     named("evasion", evasionSmell({ description })),
@@ -45,4 +67,16 @@ export function enforcementMessage(report) {
 
 function named(name, result) {
   return { name, score: result.score, evidence: result.evidence };
+}
+
+function extractImports(patch) {
+  const imports = [];
+  for (const line of patch.split("\n")) {
+    if (!line.startsWith("+") || line.startsWith("+++")) continue;
+    const esm = line.match(/\bfrom\s+['"]([^'"]+)['"]/);
+    const cjs = line.match(/\brequire\(['"]([^'"]+)['"]\)/);
+    if (esm?.[1]) imports.push(esm[1]);
+    if (cjs?.[1]) imports.push(cjs[1]);
+  }
+  return imports;
 }

@@ -17,6 +17,8 @@ export async function run() {
     `planPhase: ${activePhase(plan) || "none"}`,
     `sidecarPhase: ${state.sidecar?.phase || "NURSERY"}`,
     `quarantine: ${!!state.sidecar?.quarantine}`,
+    `sidecarMetrics: ${JSON.stringify(state.sidecar?.lastDecision?.metrics || {})}`,
+    `sidecarDecision: ${state.sidecar?.lastDecision?.decision || "none"}`,
     `lastSyncedSha: ${state.lastSyncedSha || "none"}`,
     "trajectoryTail:",
     ...events.map((event) => `- ${event.ts} ${event.type} ${JSON.stringify(event.data)}`)

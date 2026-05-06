@@ -3,6 +3,7 @@ import { listFailingRuns, getRunLogs } from "./github.mjs";
 import { runLogPath, send } from "./cursor-agent.mjs";
 import { recordEvent } from "./trajectory.mjs";
 import { readState, writeState } from "./state.mjs";
+import { evaluateTelemetry } from "./sidecar-bridge.mjs";
 
 export async function findLatestFailing(slug, { repo, env = process.env } = {}) {
   const result = await listFailingRuns(repo, { env });
@@ -28,6 +29,16 @@ export async function requestFix(slug, { repo, runId = null, env = process.env }
   };
   await writeState(slug, { ...state, sidecar: nextSidecar }, env);
   await recordEvent(slug, "ci-run", { runId: failing.run.id, logFile, conclusion: "failure" }, env);
+  await evaluateTelemetry(slug, {
+    commitHash: String(failing.run.head_sha || failing.run.id),
+    commitMessage: failing.run.display_title || `CI failure ${failing.run.id}`,
+    ciBuildStatus: "FAILURE",
+    ciLogPayload: typeof logs.logs === "string" ? logs.logs : JSON.stringify(logs),
+    linesOfCodeChanged: 0,
+    testBytesChanged: 0,
+    srcBytesChanged: 0,
+    newImports: []
+  }, env);
 
   try {
     const agentRun = await send({
