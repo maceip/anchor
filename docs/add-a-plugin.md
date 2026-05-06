@@ -1,7 +1,5 @@
-# Architecture
+# Anchor Architecture Redirect
 
-This doc has been repurposed; see `plan` for full phased architecture of Anchor.
+This repository is no longer a generic plugin starter. It now ships one plugin: Anchor.
 
-For plugin development reference, the original add-a-plugin content is superseded by Anchor's single-plugin structure.
-
-Version reference for install: 2026.05.05-84a231c
+Use [architecture.md](architecture.md) for the current system architecture and [drift-heuristics.md](drift-heuristics.md) for enforcement signals.

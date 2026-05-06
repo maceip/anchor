@@ -32,7 +32,7 @@ jobs:
         run: npm test --prefix plugins/anchor
 
       - name: Python sidecar tests
-        run: PYTHONPATH=plugins/anchor/sidecar python3 -m unittest discover -s plugins/anchor/sidecar/anchor_drift_quotient/tests
+        run: PYTHONPATH=plugins/anchor/sidecar python3 -m unittest discover plugins/anchor/sidecar
 
       - name: Static checks - Node syntax
         run: find plugins/anchor -name "*.mjs" -print0 | xargs -0 -n1 node --check
