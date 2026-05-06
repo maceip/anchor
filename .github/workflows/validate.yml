@@ -1,0 +1,44 @@
+name: validate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: plugins/anchor/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Node deps (Anchor plugin)
+        run: npm ci --prefix plugins/anchor
+
+      - name: Validator
+        run: node scripts/validate-template.mjs
+
+      - name: Node unit tests
+        run: npm test --prefix plugins/anchor
+
+      - name: Python sidecar tests
+        run: PYTHONPATH=plugins/anchor/sidecar python3 -m unittest discover -s plugins/anchor/sidecar/anchor_drift_quotient/tests
+
+      - name: Static checks - Node syntax
+        run: find plugins/anchor -name "*.mjs" -print0 | xargs -0 -n1 node --check
+
+      - name: Static checks - Shell syntax
+        run: find plugins/anchor -name "*.sh" -print0 | xargs -0 -n1 bash -n
+
+      - name: Static checks - JSON validity
+        run: find plugins/anchor -name "*.json" -print0 | xargs -0 -n1 jq -e .
