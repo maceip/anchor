@@ -1,19 +1,23 @@
 {
   "hooks": {
-    "afterFileEdit": [
+    "sessionStart": [
       {
-        "command": "./scripts/format-code.sh"
+        "command": "./scripts/hook-session-start.sh"
       }
     ],
-    "beforeShellExecution": [
+    "afterFileEdit": [
       {
-        "command": "./scripts/validate-shell.sh",
-        "matcher": "rm|curl|wget"
+        "command": "./scripts/hook-after-file-edit.sh"
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": "./scripts/hook-before-submit-prompt.sh"
       }
     ],
     "sessionEnd": [
       {
-        "command": "./scripts/audit.sh"
+        "command": "./scripts/hook-session-end.sh"
       }
     ]
   }

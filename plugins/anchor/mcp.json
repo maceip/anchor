@@ -1,10 +1,12 @@
 {
   "mcpServers": {
-    "postgres": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-postgres"],
+    "anchor": {
+      "command": "node",
+      "args": [
+        "plugins/anchor/mcp/anchor-server/index.mjs"
+      ],
       "env": {
-        "POSTGRES_CONNECTION_STRING": "${POSTGRES_URL}"
+        "ANCHOR_HOME": "${HOME}/.anchor"
       }
     }
   }
