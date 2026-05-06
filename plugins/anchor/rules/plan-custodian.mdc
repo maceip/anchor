@@ -1,0 +1,23 @@
+---
+description: Guidance for reading and updating Anchor's per-repo plan before and after non-trivial work.
+alwaysApply: false
+globs:
+  - "**/*"
+---
+
+# Plan Custodian
+
+Before drafting any non-trivial change:
+
+- Read `~/.anchor/<repo-slug>/plan.md`
+- Identify the active phase.
+- Ensure the change advances the stated mission or current phase.
+
+After meaningful work:
+
+- If trajectory changed, update the plan (Mission, Phases, Active phase, Recent decisions).
+- Record the plan change via `/anchor-plan` or trajectory event.
+
+If no plan exists, invoke plan archaeology to reconstruct from git history, issues, and docs.
+
+All plan edits are appended to trajectory.

@@ -1,34 +1,47 @@
-# Cursor plugin template
+# Anchor
 
-Build and publish Cursor Marketplace plugins from a single repo.
+Anchor is an anti-drift Cursor plugin that supervises a per-repo cloud agent to keep projects on trajectory, CI green, and PRs aligned with the plan.
 
-Two starter plugins are included:
+## Mission: prevent drift
 
-- **starter-simple**: rules and skills only
-- **starter-advanced**: rules, skills, agents, commands, hooks, MCP, and scripts
+Drift includes:
+- Red CI/CD that nobody is fixing
+- Loss of trajectory
+- PR-level evasion (padding, placeholders, rat-holing, goalpost moving)
+- Structural degradation
+- Orthogonal Quality Trap (high-quality code for the wrong thing)
 
-## Getting started
+## What Anchor watches
 
-[Use this template](https://github.com/cursor/plugin-template/generate) to create a new repository, then customize:
+- Git diffs, commit metadata, CI/CD logs
+- Import resolution, test/source change ratios, AST complexity, clone density
+- Commit/CI failure patterns via Drift Quotient sidecar
 
-1. `.cursor-plugin/marketplace.json`: set marketplace `name`, `owner`, and `metadata`.
-2. `plugins/*/.cursor-plugin/plugin.json`: set `name` (lowercase kebab-case), `displayName`, `author`, `description`, `keywords`, `license`, and `version`.
-3. Replace placeholder rules, skills, agents, commands, hooks, scripts, and logos.
+## Install
 
-To add more plugins, see `docs/add-a-plugin.md`.
+1. Install the Anchor plugin from the Cursor Marketplace.
+2. In an opted-in repo, run `/anchor-opt-in`.
 
-## Single plugin vs multi-plugin
+Anchor maintains local state under `~/.anchor/<repo-slug>/`.
 
-This template defaults to **multi-plugin** (multiple plugins in one repo).
+## Validation
 
-For a **single plugin**, move your plugin folder contents to the repository root, keep one `.cursor-plugin/plugin.json`, and remove `.cursor-plugin/marketplace.json`.
+```bash
+node scripts/validate-template.mjs
+```
 
-## Submission checklist
+## Commands
 
-- Each plugin has a valid `.cursor-plugin/plugin.json`.
-- Plugin names are unique, lowercase, and kebab-case.
-- `.cursor-plugin/marketplace.json` entries map to real plugin folders.
-- All frontmatter metadata is present in rule, skill, agent, and command files.
-- Logos are committed and referenced with relative paths.
-- `node scripts/validate-template.mjs` passes.
-- Repository link is ready for submission to the Cursor team (Slack or `kniparko@anysphere.com`).
+- `/anchor-opt-in`
+- `/anchor-status`
+- `/anchor-sync`
+- `/anchor-fix-ci`
+- `/anchor-audit-pr <pr-number>`
+- `/anchor-plan [--regenerate]`
+- `/anchor-opt-out`
+
+See `plugins/anchor/README.md` and `docs/architecture.md` for details.
+
+## FAQ
+
+See the full phased implementation plan in the repo's `plan` file for v1 scope.

@@ -1,0 +1,15 @@
+---
+description: Anchor's always-on anti-drift policy for PRs, plans, branches, infra edits, and unfinished work.
+alwaysApply: true
+---
+
+# Anti-Drift Policy
+
+Anchor enforces this policy on all work in opted-in repositories.
+
+- PRs must align with the active phase or named plan entry in `~/.anchor/<repo-slug>/plan.md` (or an explicit `/anchor-plan` record).
+- PR description length should be proportional to diff size. Long prose with minimal diff is a smell.
+- Any change touching only infra/ops paths on a non-infra branch requires either an `infra:` prefix or a plan note justifying the deviation.
+- Behavior-affecting changes must include or update tests.
+- Titles or bodies containing "stub", "placeholder", "TODO follow-up", "out of scope", "for now", or similar language trigger enforcement.
+- Anchor will comment and may block PRs that pad scope, hand-wave verification, or shift goalposts instead of completing the stated task.

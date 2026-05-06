@@ -1,0 +1,2042 @@
+Anchor Anti-Drift Custodian with Drift Quotient Sidecar
+Executive summary
+This project reshapes the existing cursor-anchor repository from a generic Cursor plugin marketplace template into Anchor: a single Cursor plugin whose mission is to prevent autonomous coding drift.
+Anchor operates per opted-in repository. Once a repo is opted in, Anchor creates and supervises a durable Cursor cloud agent whose role is to keep the project aligned with its stated trajectory. Drift means:
+1. Red CI/CD that nobody is fixing.
+2. Loss of trajectory — the team or agent forgets what is being built, why it matters, or which phase is active.
+3. PR-level evasion — submitters pad, hand-wave, create placeholders, rat-hole into infra, or change the goalposts instead of finishing the stated task.
+4. Structural degradation — spaghetti code, clone-heavy patches, hallucinated APIs, and test-loop hacking.
+5. The Orthogonal Quality Trap — code that is technically high quality but builds the wrong thing.
+The system has two tightly connected parts:
+1. Anchor Cursor Plugin — the control plane, user-facing commands, rules, skills, agents, hooks, MCP server, Node CLI, Cursor SDK integration, GitHub integration, trajectory store, and plan custodian.
+2. Drift Quotient Sidecar — a black-box evaluation pipeline that monitors autonomous coding agents only through their artifacts: Git diffs, commit metadata, CI/CD logs, import resolution, test/source change ratios, AST complexity, clone density, and commit/CI failure patterns.
+The minimum viable version must work with no external infrastructure: install the plugin, run /anchor-opt-in in a repo, and Anchor begins maintaining local state under ~/.anchor/<repo-slug>/. Webhook reception, dashboards, hosted daemons, and persistent services are optional v1 extensions, not required for the core workflow.
+
+1. Unified product architecture
+1.1 Product identity
+The repository becomes a single-plugin marketplace repo for Anchor.
+Anchor is not a collection of sample plugins. It is a focused anti-drift system for Cursor-assisted development.
+The plugin:
+* Maintains a living plan.md per opted-in repo.
+* Records a JSONL trajectory database per opted-in repo.
+* Attaches or creates a durable Cursor cloud agent per repo.
+* Watches GitHub Actions and treats red CI as an outage.
+* Audits PRs for evasion, verbosity mismatch, infra rat-holing, placeholder work, and plan drift.
+* Computes a Drift Quotient using black-box sidecar metrics.
+* Escalates severe or sustained drift into quarantine-style enforcement.
+1.2 Runtime components
+Anchor consists of these layers:
+Layer	Responsibility
+Cursor plugin manifest	Marketplace identity, logo, plugin metadata
+Rules	Always-on and contextual behavior constraints for anti-drift work
+Skills	SOPs for drift detection, CI repair, PR auditing, plan curation, trajectory recording
+Agents	Persona prompts for custodian, CI fixer, PR enforcer, and plan archaeologist
+Commands	/anchor-* user interface for opt-in, status, sync, CI repair, PR audit, planning, and opt-out
+Hooks	Lightweight session and edit telemetry, drift warnings, and trajectory summaries
+Node CLI	Operational core used by commands and hooks
+Cursor SDK wrapper	Creates, reattaches, and messages durable Cursor cloud agents
+GitHub integration	Reads Actions runs, PRs, diffs, logs, and posts comments
+MCP server	Gives the cloud agent programmatic access to Anchor state and tools
+Drift heuristics engine	Lightweight PR and branch-level practical drift checks
+Drift Quotient sidecar	Statistical black-box monitoring pipeline with CUSUM, nursery, monitoring, quarantine, and re-baselining
+Local state	~/.anchor/<repo-slug>/state.json, trajectory.jsonl, plan.md, run logs, cache, and sidecar baselines
+1.3 The North Star document
+Anchor’s per-repo plan.md is the project’s North Star document.
+It lives at:
+
+~/.anchor/<repo-slug>/plan.md
+
+It contains:
+
+## Mission
+
+## Phases
+
+## Active phase
+
+## Recent decisions
+
+The Drift Quotient sidecar uses this document as the canonical roadmap when computing semantic divergence and prerequisite alignment.
+Humans may edit it freely. Anchor and the cloud agent may regenerate it through /anchor-plan --regenerate when no reliable plan exists or when the project needs re-baselining.
+
+2. Phase 0 — Reshape the repository
+Goal
+Convert the repo from a generic multi-plugin starter marketplace into the single-plugin Anchor marketplace.
+Tasks
+2.1 Delete the sample plugin folder
+Run:
+
+git rm -r plugins/starter-simple
+
+Acceptance:
+
+test ! -d plugins/starter-simple
+git status
+
+plugins/starter-simple/ must not exist, and the deletion must be staged.
+
+2.2 Rename advanced plugin to Anchor
+Run:
+
+git mv plugins/starter-advanced plugins/anchor
+
+Acceptance:
+
+test -d plugins/anchor
+test ! -d plugins/starter-advanced
+
+plugins/anchor/ must contain all original advanced plugin files until later phases rewrite them.
+
+2.3 Rewrite .cursor-plugin/marketplace.json
+New file shape:
+
+{
+  "name": "anchor-marketplace",
+  "owner": {
+    "name": "maceip",
+    "email": "anchor@maceip.dev"
+  },
+  "metadata": {
+    "description": "Anchor — anti-drift Cursor plugin that supervises a per-repo cloud agent.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "anchor",
+      "source": "./plugins/anchor",
+      "description": "Per-repo cloud agent that keeps CI green, maintains trajectory memory, and pushes back on drifting PRs."
+    }
+  ]
+}
+
+Acceptance:
+* Validator passes.
+* There is exactly one plugin entry.
+* Plugin name is kebab-case.
+* source resolves to ./plugins/anchor.
+
+2.4 Rewrite plugins/anchor/.cursor-plugin/plugin.json
+Set:
+
+{
+  "name": "anchor",
+  "displayName": "Anchor",
+  "version": "0.1.0",
+  "description": "Per-repo cloud agent that keeps CI green, maintains trajectory memory, and pushes back on drifting PRs.",
+  "keywords": [
+    "cursor",
+    "plugin",
+    "anti-drift",
+    "ci",
+    "trajectory",
+    "pr-review",
+    "cloud-agent"
+  ],
+  "author": "maceip",
+  "license": "MIT",
+  "logo": "assets/logo.svg"
+}
+
+Acceptance:
+* Validator passes.
+* pluginManifest.name === "anchor".
+* Plugin manifest name equals the marketplace entry name.
+* Logo path resolves.
+
+2.5 Update top-level README.md
+The top-level README must describe:
+* What Anchor is.
+* Its anti-drift mission.
+* How to install/use it.
+* How /anchor-opt-in works.
+* How Anchor keeps CI green.
+* How Anchor maintains trajectory memory.
+* How Anchor audits PRs.
+* How the Drift Quotient sidecar fits in.
+* How to run the validator.
+Remove:
+* “two starter plugins included”
+* “single vs multi-plugin”
+* starter-simple
+* starter-advanced
+* generic marketplace boilerplate
+Keep:
+
+node scripts/validate-template.mjs
+
+Acceptance:
+
+rg -n "starter-simple|starter-advanced|two starter|single vs multi-plugin" README.md
+
+No matches.
+
+2.6 Update plugins/anchor/README.md
+The plugin README must describe:
+* Rules
+* Skills
+* Agents
+* Commands
+* Hooks
+* MCP server
+* Node CLI
+* Cursor SDK wrapper
+* GitHub integration
+* Local state under ~/.anchor
+* Drift heuristics
+* Drift Quotient sidecar
+* Opt-in flow
+* Environment variables
+Drop all starter framing.
+Acceptance:
+* README reflects all components added in later phases.
+* It references only files that exist or are explicitly planned in this phased implementation.
+
+Phase 0 testing
+Run:
+
+node scripts/validate-template.mjs
+git ls-files plugins/starter-simple
+rg -n "starter-simple|starter-advanced" -S
+
+Expected:
+* Validator exits 0.
+* git ls-files plugins/starter-simple returns empty.
+* rg returns no matches outside committed git history.
+
+3. Phase 1 — Anchor plugin core
+All paths in this phase are inside:
+
+plugins/anchor/
+
+3.1 Logo
+Keep the existing SVG from the renamed advanced plugin for now:
+
+assets/logo.svg
+
+No edit is required in v1.
+Acceptance:
+* assets/logo.svg exists.
+* plugin.json logo field resolves.
+* Follow-up issue may replace it with a purpose-built Anchor logo.
+
+3.2 Rules
+Replace the existing rule files and add the following files under:
+
+plugins/anchor/rules/
+
+Every .mdc file must start with frontmatter containing description. alwaysApply must be set explicitly.
+rules/anti-drift-policy.mdc
+Frontmatter:
+
+---
+description: Anchor's always-on anti-drift policy for PRs, plans, branches, infra edits, and unfinished work.
+alwaysApply: true
+---
+
+Policy content:
+* PRs must mirror the plan or phase named in the branch, or an explicit /anchor-plan entry.
+* Diff size and PR description should track each other.
+* A long description with a tiny diff is suspicious.
+* Infra-only path changes in a feature branch require either:
+    * an explicit infra: branch or PR prefix, or
+    * a plan note explaining why infra work is required.
+* Behavior changes require tests.
+* PR titles or descriptions containing stub, placeholder, TODO follow-up, or equivalent language are red flags.
+* Anchor should push back on work that hand-waves, pads, or changes the goal.
+Acceptance:
+* Validator passes.
+* File is roughly ≤ 1.5 KB.
+
+rules/ci-green-mandate.mdc
+Frontmatter:
+
+---
+description: Anchor's rule that red CI is treated as an outage and must be addressed before lower-priority work.
+alwaysApply: true
+---
+
+Policy content:
+* CI red is an outage.
+* Anchor’s first job is to make CI green.
+* Anchor’s second job is everything else.
+* Do not ignore failing GitHub Actions runs.
+* Prefer the smallest fix that restores green CI.
+* Record CI runs and fixes in trajectory.
+Acceptance:
+* Validator passes.
+* File is roughly ≤ 1.5 KB.
+
+rules/plan-custodian.mdc
+Frontmatter:
+
+---
+description: Guidance for reading and updating Anchor's per-repo plan before and after non-trivial work.
+alwaysApply: false
+globs:
+  - "**/*"
+---
+
+Policy content:
+* Before drafting any non-trivial change, read:
+
+~/.anchor/<repo-slug>/plan.md
+
+* Use the plan to identify the active phase.
+* After meaningful work, update the plan if the project trajectory changed.
+* If no plan exists, invoke plan archaeology.
+* Record plan changes in trajectory.
+Acceptance:
+* Validator passes.
+* File is roughly ≤ 1.5 KB.
+
+rules/pr-conduct.mdc
+Frontmatter:
+
+---
+description: PR description and conduct expectations for Anchor-audited changes.
+alwaysApply: false
+globs:
+  - "**/.github/**"
+  - "**/*.md"
+---
+
+Policy content:
+* PR descriptions must be direct.
+* No apologetic prose.
+* No padding.
+* Link to the relevant plan section.
+* Explain what changed, why, and how it was verified.
+* Do not use “for now,” “quick aside,” “out of scope,” or similar phrasing to bury unfinished work.
+Acceptance:
+* Validator passes.
+* File is roughly ≤ 1.5 KB.
+
+3.3 Skills
+Create these skill folders:
+
+plugins/anchor/skills/drift-detector/SKILL.md
+plugins/anchor/skills/ci-green-keeper/SKILL.md
+plugins/anchor/skills/pr-auditor/SKILL.md
+plugins/anchor/skills/plan-curator/SKILL.md
+plugins/anchor/skills/trajectory-recorder/SKILL.md
+
+Each SKILL.md must include frontmatter:
+
+---
+name: <skill-name>
+description: <skill description>
+---
+
+drift-detector
+Purpose:
+* Detect branch, PR, plan, and artifact drift.
+* Use practical Anchor heuristics and Drift Quotient sidecar metrics.
+* Produce a JSON-ish DriftReport.
+Output format:
+
+DriftReport:
+  severity: low|medium|high|quarantine
+  signals:
+    - name: <signal>
+      score: <0-1 or numeric metric>
+      evidence:
+        - <evidence>
+  message: <enforcement or advisory text>
+
+Acceptance:
+* Validator passes.
+* Skill explains when to use it.
+* Skill references both PR-level heuristics and the sidecar Drift Quotient.
+
+ci-green-keeper
+Purpose:
+* Diagnose failing GitHub Actions runs.
+* Use:
+
+gh run view --log-failed
+
+* Classify the root cause as:
+    * flake
+    * config
+    * code
+* Draft the smallest fix.
+* Open or update the repair PR.
+* Record the CI run and repair attempt in trajectory.
+Acceptance:
+* Validator passes.
+
+pr-auditor
+Purpose:
+* Audit PR descriptions, diffs, file paths, and plan alignment.
+* Detect verbose or evasive PRs.
+* Use canonical enforcement message format.
+Canonical enforcement message:
+
+Anchor drift audit found blocking drift.
+
+Plan phase:
+<phase>
+
+Signals:
+- <signal>: <evidence>
+
+Required correction:
+<specific correction>
+
+Do not expand scope, pad the PR, or defer the stated task behind placeholders.
+
+Acceptance:
+* Validator passes.
+
+plan-curator
+Purpose:
+* Read commit history and open issues.
+* Reconstruct or maintain plan.md.
+* Define what counts as a phase change.
+* Keep Mission, Phases, Active phase, and Recent decisions current.
+Acceptance:
+* Validator passes.
+
+trajectory-recorder
+Purpose:
+Append structured events to:
+
+~/.anchor/<repo-slug>/trajectory.jsonl
+
+Supported event types:
+
+commit
+pr
+ci-run
+plan-change
+drift-flag
+session-summary
+
+Sidecar metric events may be recorded as drift-flag events with metric detail in data.
+Acceptance:
+* Validator passes.
+
+3.4 Agents
+Replace the existing security-reviewer.md agent with:
+
+plugins/anchor/agents/anchor-custodian.md
+plugins/anchor/agents/ci-fixer.md
+plugins/anchor/agents/pr-enforcer.md
+plugins/anchor/agents/plan-archaeologist.md
+
+Each agent file must have frontmatter:
+
+---
+name: <agent-name>
+description: <agent description>
+---
+
+Each body is the agent’s system prompt and must name the tools it can call.
+anchor-custodian.md
+Role:
+* Top-level anti-drift agent.
+* Reads ~/.anchor/<repo-slug>/plan.md.
+* Uses trajectory before deciding whether work is on course.
+* Calls Anchor MCP tools.
+* Treats red CI as the highest priority.
+* Uses Drift Quotient sidecar reports when available.
+Tools to name:
+
+anchor.getPlan
+anchor.setPlan
+anchor.getTrajectory
+anchor.recordEvent
+anchor.getCIStatus
+anchor.requestCIFix
+anchor.auditPR
+anchor.getDriftReport
+
+Acceptance:
+* Validator passes.
+* Prompt names the plan path and MCP tools.
+
+ci-fixer.md
+Role:
+* Narrowly scoped to fixing failing workflow runs.
+* Reads logs.
+* Classifies failure.
+* Makes the smallest repair.
+* Avoids unrelated refactors.
+Acceptance:
+* Validator passes.
+* Prompt names the CI and trajectory tools.
+
+pr-enforcer.md
+Role:
+* Audits a PR diff.
+* Emits direct enforcement text.
+* Detects padding, placeholders, infra rat-holing, and plan drift.
+* Incorporates Drift Quotient sidecar findings when present.
+Acceptance:
+* Validator passes.
+
+plan-archaeologist.md
+Role:
+* Used when no plan exists.
+* Reconstructs intent from:
+    * git history
+    * open issues
+    * recent PRs
+    * existing README/docs
+* Produces a fresh plan.md.
+Acceptance:
+* Validator passes.
+
+3.5 Commands
+Replace the existing command with these files under:
+
+plugins/anchor/commands/
+
+Each command must have frontmatter:
+
+---
+name: <command-name>
+description: <command description>
+---
+
+Each command body should be a short SOP that ultimately invokes:
+
+node plugins/anchor/scripts/anchor-cli.mjs <subcommand>
+
+Command set
+Command	Purpose
+/anchor-opt-in	Marks the current repo as opted in. Writes ~/.anchor/<slug>/state.json, ensures a per-repo cloud agent exists, and creates .cursor/environment.json.example if absent.
+/anchor-status	Prints opt-in state, latest trajectory tail, current plan phase, last CI status, sidecar pipeline phase, latest Drift Quotient signals, and whether a cloud agent is attached.
+/anchor-sync	Syncs the trajectory DB with git log since the last record and re-evaluates drift. Also feeds new artifact telemetry into the sidecar when available.
+/anchor-fix-ci	Triggers the per-repo cloud agent to fix the most recent failing workflow. CI red remains Anchor’s top priority.
+/anchor-audit-pr <pr-number>	Runs PR auditor and sidecar drift checks on a PR, then emits or posts an enforcement message.
+/anchor-plan	Shows or regenerates plan.md. With --regenerate, the cloud agent re-derives the plan from history.
+/anchor-opt-out	Tears down per-repo opted-in state but leaves the durable cloud agent history reattachable later.
+Acceptance:
+* Validator passes.
+* After Phase 2 lands, each node invocation exits 0 in dry-run/no-env mode unless there is a real failure.
+
+3.6 Hooks
+Use:
+
+plugins/anchor/hooks/hooks.json
+
+with:
+
+{
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "./scripts/hook-session-start.sh"
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "./scripts/hook-after-file-edit.sh"
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": "./scripts/hook-before-submit-prompt.sh"
+      }
+    ],
+    "sessionEnd": [
+      {
+        "command": "./scripts/hook-session-end.sh"
+      }
+    ]
+  }
+}
+
+Keep executable shell shims because the validator expects shell scripts.
+Shell shims
+
+plugins/anchor/scripts/hook-session-start.sh
+plugins/anchor/scripts/hook-after-file-edit.sh
+plugins/anchor/scripts/hook-before-submit-prompt.sh
+plugins/anchor/scripts/hook-session-end.sh
+
+Each shim should exec node into the matching hook implementation:
+
+exec node "$(dirname "$0")/../hooks/session-start.mjs" "$@"
+
+Node hook implementations
+
+plugins/anchor/hooks/session-start.mjs
+plugins/anchor/hooks/after-file-edit.mjs
+plugins/anchor/hooks/before-submit-prompt.mjs
+plugins/anchor/hooks/session-end.mjs
+
+Behavior:
+Hook	Behavior
+session-start	Loads Anchor state, prints a one-line drift status banner, includes sidecar phase if known, and silently returns if not opted in.
+after-file-edit	Records edited path under a session bucket. Flags rat-hole patterns such as 5+ infra edits in one session on a non-infra branch.
+before-submit-prompt	Inspects the prompt for drift smells such as “let’s also refactor” or “as a quick aside” and warns once per session.
+session-end	Appends a session-summary row to trajectory.
+Requirements:
+* Hooks must exit 0 when not opted in.
+* Hooks must be cheap, targeting <200ms for non-blocking events.
+* Hook failures must not disrupt Cursor sessions.
+Acceptance:
+
+chmod +x plugins/anchor/scripts/hook-*.sh
+
+* All shims are executable.
+* Node implementations handle missing state gracefully.
+* Running hooks in a non-opted-in repo prints nothing and exits 0.
+
+3.7 MCP server config
+Replace the postgres example with:
+
+{
+  "mcpServers": {
+    "anchor": {
+      "command": "node",
+      "args": [
+        "plugins/anchor/mcp/anchor-server/index.mjs"
+      ],
+      "env": {
+        "ANCHOR_HOME": "${HOME}/.anchor"
+      }
+    }
+  }
+}
+
+Acceptance:
+* mcp.json exists at plugin root.
+* Referenced server script exists after Phase 2.
+* Validator passes.
+
+4. Phase 2 — Node toolchain, Cursor SDK glue, GitHub integration, MCP server
+All paths in this phase are inside:
+
+plugins/anchor/
+
+4.1 Layout
+Create this structure:
+
+plugins/anchor/
+├── package.json
+├── package-lock.json
+├── scripts/
+│   ├── anchor-cli.mjs
+│   ├── cli/
+│   │   ├── opt-in.mjs
+│   │   ├── opt-out.mjs
+│   │   ├── status.mjs
+│   │   ├── sync.mjs
+│   │   ├── fix-ci.mjs
+│   │   ├── audit-pr.mjs
+│   │   ├── plan.mjs
+│   │   └── daemon.mjs
+│   ├── lib/
+│   │   ├── paths.mjs
+│   │   ├── state.mjs
+│   │   ├── trajectory.mjs
+│   │   ├── plan.mjs
+│   │   ├── git.mjs
+│   │   ├── github.mjs
+│   │   ├── cursor-agent.mjs
+│   │   ├── drift.mjs
+│   │   ├── pr-audit.mjs
+│   │   ├── ci-watch.mjs
+│   │   └── sidecar-bridge.mjs
+│   ├── hook-session-start.sh
+│   ├── hook-after-file-edit.sh
+│   ├── hook-before-submit-prompt.sh
+│   └── hook-session-end.sh
+├── hooks/
+│   ├── hooks.json
+│   ├── session-start.mjs
+│   ├── after-file-edit.mjs
+│   ├── before-submit-prompt.mjs
+│   └── session-end.mjs
+├── mcp/
+│   └── anchor-server/
+│       ├── index.mjs
+│       └── tools.mjs
+├── sidecar/
+│   └── anchor_drift_quotient/
+│       ├── __init__.py
+│       ├── pipeline.py
+│       ├── telemetry.py
+│       ├── heuristics.py
+│       ├── protocols.py
+│       └── tests/
+└── templates/
+    └── environment.json.example
+
+sidecar-bridge.mjs is the Node-to-Python integration layer. It calls the Drift Quotient sidecar and normalizes the result into Anchor’s DriftReport shape.
+
+4.2 package.json
+Create:
+
+{
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@cursor/sdk": "^0",
+    "@octokit/rest": "^21",
+    "dotenv": "^16"
+  },
+  "scripts": {
+    "validate": "node ../../scripts/validate-template.mjs",
+    "test": "node --test scripts/lib/*.test.mjs"
+  }
+}
+
+MCP dependency decision:
+* Prefer a thin hand-rolled stdio JSON-RPC server to keep dependencies small.
+* Add @modelcontextprotocol/sdk@^1 only if the hand-rolled server becomes fragile or too custom.
+Acceptance:
+* npm install creates package-lock.json.
+* npm run validate passes.
+* npm test is available.
+
+4.3 CLI entrypoint
+Create:
+
+plugins/anchor/scripts/anchor-cli.mjs
+
+CLI parsing stays dependency-free.
+Dispatch to:
+
+scripts/cli/opt-in.mjs
+scripts/cli/opt-out.mjs
+scripts/cli/status.mjs
+scripts/cli/sync.mjs
+scripts/cli/fix-ci.mjs
+scripts/cli/audit-pr.mjs
+scripts/cli/plan.mjs
+scripts/cli/daemon.mjs
+
+Subcommands
+Subcommand	Behavior
+opt-in [--repo-url URL] [--no-cloud]	Detects current repo or accepts URL. Writes state. Ensures ~/.anchor/<slug>/ exists. Calls cursor-agent.ensure() unless --no-cloud is passed. Writes .cursor/environment.json from template if absent. Idempotent.
+opt-out	Marks state.json with optedIn:false. Leaves history and durable cloud agent reattachable.
+status	Pretty-prints opt-in state, cloud agent status, last 5 trajectory rows, plan phase, last CI status, sidecar phase, latest sidecar metrics, and any quarantine state.
+sync	Calls trajectory.sync(), reading git log since state.lastSyncedSha. Re-evaluates practical drift and, when artifact telemetry is available, updates sidecar metrics.
+fix-ci	Calls ci-watch.findLatestFailing(), then asks the durable cloud agent to fix it. Streams events to ~/.anchor/<slug>/runs/<runId>.log and records run id / PR URL in trajectory.
+audit-pr <number>	Calls PR audit. Computes Anchor practical heuristics and sidecar Drift Quotient signals. If drift is found, posts or updates a PR comment and asks the cloud agent to send an enforcement message.
+plan [--regenerate]	Without flag, prints plan.md. With --regenerate, dispatches the plan-archaeologist run on the cloud agent and writes the result to plan.md.
+daemon	Optional hidden long-running poll loop. Every 60 seconds it syncs, audits new PRs, checks CI, and triggers CI repair when configured. Documented as opt-in for users who want a server-like process.
+Exit behavior:
+* Real failures exit non-zero.
+* “Not opted in” is not a failure.
+* Missing optional tokens should produce clear messages and exit 0 when the action can safely no-op.
+
+4.4 Cursor SDK wrapper
+Create:
+
+plugins/anchor/scripts/lib/cursor-agent.mjs
+
+Functions:
+ensure({ repoUrl, branch, slug })
+Behavior:
+* Reads state.json.
+* If state.cloudAgentId exists, reattaches by id.
+* If missing, creates a durable Cursor cloud agent:
+
+Agent.create({
+  apiKey: process.env.CURSOR_API_KEY,
+  model: {
+    id: process.env.ANCHOR_MODEL_ID || "composer-2"
+  },
+  cloud: {
+    repos: [
+      {
+        url: repoUrl,
+        startingRef: branch
+      }
+    ],
+    autoCreatePR: true
+  }
+})
+
+* Persists agent.id to state.
+send({ slug, prompt, persona })
+Behavior:
+* Loads one of the four agent prompts.
+* Prefixes the task with:
+
+## Persona: <name>
+
+<persona body>
+
+## Task
+
+<prompt>
+
+* Sends the prompt to the durable agent.
+streamToFile({ run, path })
+Behavior:
+* Writes cloud-agent events SSE-style to a log file.
+Requirements:
+* All SDK calls require CURSOR_API_KEY.
+* Missing key produces a helpful error.
+* API shape differences are isolated here.
+Acceptance:
+* SDK usage is contained to this one wrapper.
+* Tests can inject a mock SDK.
+
+4.5 Local state stores
+Anchor state lives outside the repo:
+
+~/.anchor/<repo-slug>/
+├── state.json
+├── trajectory.jsonl
+├── plan.md
+├── runs/
+│   └── <runId>.log
+└── cache/
+
+state.json
+Shape:
+
+{
+  "optedIn": true,
+  "repoUrl": "https://github.com/example/repo",
+  "slug": "example__repo",
+  "branch": "main",
+  "cloudAgentId": "agent-id-if-created",
+  "lastSyncedSha": "commit-sha",
+  "lastPlanRegenAt": "ISO8601 timestamp",
+  "webhookSecret": "optional",
+  "sidecar": {
+    "phase": "NURSERY",
+    "commitCount": 0,
+    "stableCommitsStreak": 0,
+    "recentCiFailures": 0,
+    "quarantine": false,
+    "lastDecision": null
+  }
+}
+
+Do not store API keys.
+trajectory.jsonl
+Rows:
+
+{
+  "ts": "ISO8601",
+  "type": "commit|pr|ci-run|plan-change|drift-flag|session-summary",
+  "data": {}
+}
+
+Sidecar events should use type: "drift-flag" with metric detail in data.
+plan.md
+Required sections:
+
+## Mission
+
+## Phases
+
+## Active phase
+
+## Recent decisions
+
+The plan-archaeologist regenerates this. Humans edit it freely.
+
+4.6 GitHub integration
+Create:
+
+plugins/anchor/scripts/lib/github.mjs
+
+Use:
+
+@octokit/rest
+
+Auth:
+* Prefer GITHUB_TOKEN.
+* Fall back to gh auth token if available.
+* If neither exists, functions no-op with clear messages.
+Functions:
+
+listFailingRuns(repo)
+getRunLogs(runId)
+listOpenPRs(repo)
+getPR(number)
+getPRDiff(number)
+commentOnPR(number, body)
+
+Requirements:
+* No token means no GitHub mutation.
+* CLI surfaces needs GITHUB_TOKEN where required.
+* Use conditional requests and ETag cache where practical to reduce rate-limit pressure.
+
+4.7 Practical drift heuristics
+Create:
+
+plugins/anchor/scripts/lib/drift.mjs
+
+These are the lightweight Anchor heuristics used immediately in PR audits and local syncs.
+Functions:
+verbositySmell({ description, diffStats })
+Flags cases where PR description length is suspiciously large relative to diff size.
+Returns:
+
+{ score: 0-1, evidence: string[] }
+
+infraRatHoleSmell({ files, branchName, plan })
+Flags cases where:
+* infraRatio > 0.6
+* branch is not an infra branch
+* active plan does not justify infra-heavy work
+Returns:
+
+{ score: 0-1, evidence: string[] }
+
+evasionSmell({ description })
+Weighted regex set:
+
+/\b(stub|todo|follow-?up|further|placeholder|out of scope)\b/i
+/\bfor now\b/i
+/\bquick (fix|aside|note)\b/i
+
+Returns:
+
+{ score: 0-1, evidence: string[] }
+
+planDriftSmell({ files, plan })
+Flags touched packages, directories, or subsystems that do not appear in the active phase scope.
+Returns:
+
+{ score: 0-1, evidence: string[] }
+
+compose(report)
+Returns:
+
+{
+  severity: "none|low|medium|high|quarantine",
+  signals: [],
+  message: "..."
+}
+
+Threshold:
+* Drift at >= 0.5.
+* Sidecar quarantine overrides practical heuristic severity.
+Acceptance:
+* Pure functions.
+* Unit-tested with golden cases.
+* No GitHub or SDK dependency.
+
+4.8 PR audit
+Create:
+
+plugins/anchor/scripts/lib/pr-audit.mjs
+
+Behavior:
+1. Pull PR metadata and diff through Octokit.
+2. Compute practical drift report from drift.mjs.
+3. Invoke the Drift Quotient sidecar through sidecar-bridge.mjs when enough telemetry exists.
+4. Merge practical and statistical drift signals.
+5. Optionally ask the cloud agent to rephrase the enforcement message so “Anchor speaks with authority.”
+6. Comment on the PR.
+7. If Anchor already commented on the same PR head SHA, update the prior comment instead of duplicating.
+Acceptance:
+* Idempotent comments.
+* Sidecar failure does not block practical PR audit.
+* Missing GitHub token produces a clear no-op.
+
+4.9 CI watch
+Create:
+
+plugins/anchor/scripts/lib/ci-watch.mjs
+
+Behavior:
+1. List workflow runs with:
+
+status=completed
+conclusion=failure
+
+1. Pick newest failing run.
+2. Fetch logs.
+3. Feed failure telemetry into practical CI classification and sidecar Flail Index tracking.
+4. Ask cloud agent:
+
+fix run X. Logs attached.
+
+1. Use autoCreatePR: true so the cloud agent pushes a fix branch and opens a PR.
+2. Record run id and PR URL in trajectory.
+Acceptance:
+* Red CI is prioritized.
+* Consecutive CI failure count feeds the sidecar Flail Index.
+* Missing token no-ops clearly.
+
+4.10 MCP server
+Create:
+
+plugins/anchor/mcp/anchor-server/index.mjs
+plugins/anchor/mcp/anchor-server/tools.mjs
+
+Implement a minimal stdio JSON-RPC MCP surface.
+Tools:
+
+anchor.getPlan({ slug? })
+anchor.setPlan({ slug?, markdown })
+anchor.getTrajectory({ slug?, limit? })
+anchor.recordEvent({ slug?, event })
+anchor.getCIStatus({ slug? })
+anchor.requestCIFix({ slug?, runId? })
+anchor.auditPR({ slug?, prNumber })
+anchor.getDriftReport({ slug?, prNumber? })
+
+anchor.getDriftReport must include:
+* practical heuristic signals
+* sidecar Drift Quotient metrics when available
+* sidecar pipeline phase
+* quarantine status
+* recommended enforcement action
+Acceptance:
+* Server stays roughly under 200 lines if hand-rolled.
+* Tools delegate to the same libraries used by CLI.
+* Cloud agent can access its own Anchor state through MCP.
+
+4.11 Environment template
+Create:
+
+plugins/anchor/templates/environment.json.example
+
+Purpose:
+* /anchor-opt-in copies this to the target repo’s .cursor/environment.json only if absent.
+* It documents install steps and optional daemon behavior.
+It should include:
+* install step:
+
+pnpm i || npm i
+
+* terminal entry:
+
+node plugins/anchor/scripts/anchor-cli.mjs daemon
+
+This makes Anchor’s CLI available to the cloud agent when the repo is running inside Cursor’s environment.
+Acceptance:
+* Copy is idempotent.
+* Existing .cursor/environment.json is not overwritten.
+
+5. Phase 3 — Drift Quotient sidecar
+Goal
+Build the black-box evaluation pipeline that measures when an autonomous coding agent has drifted away from the explicit roadmap.
+The sidecar cannot rely on agent memory, internal prompts, hidden scratchpads, or private planning state. It evaluates only:
+* Git diffs
+* commit messages
+* CI/CD logs
+* build status
+* changed file paths
+* import lists
+* byte volume of tests vs source
+* lines of code changed
+* AST complexity
+* clone density
+* sequential CI failure patterns
+The sidecar detects:
+* Structural Degradation
+    * spaghetti logic
+    * hallucinated APIs
+    * unresolved imports
+    * test-loop hacking
+    * duplication of existing utilities
+* Orthogonal Quality Trap
+    * polished, optimized, well-tested work that does not implement the stated roadmap
+    * unauthorized feature expansion
+    * “strict prerequisite” claims that are not actually required by the North Star plan
+
+5.1 Sidecar location
+Implement the typed Python sidecar under:
+
+plugins/anchor/sidecar/anchor_drift_quotient/
+
+Suggested files:
+
+plugins/anchor/sidecar/anchor_drift_quotient/
+├── __init__.py
+├── telemetry.py
+├── protocols.py
+├── cusum.py
+├── heuristics.py
+├── pipeline.py
+├── report.py
+└── tests/
+    ├── test_cusum.py
+    ├── test_heuristics.py
+    ├── test_pipeline.py
+    └── test_flail_index.py
+
+The supplied typed implementation should be preserved conceptually and split into maintainable modules.
+
+5.2 Domain types and interfaces
+Preserve these domain types.
+PipelinePhase
+Enum values:
+
+class PipelinePhase(Enum):
+    NURSERY = auto()
+    MONITORING = auto()
+    QUARANTINE = auto()
+
+Meaning:
+Phase	Meaning
+NURSERY	Learning the mathematical baseline
+MONITORING	Active CUSUM drift tracking
+QUARANTINE	Drift detected; repository or branch should be locked or blocked
+GitArtifactTelemetry
+Immutable payload received from Git/CI webhooks or Anchor’s local CLI.
+Fields:
+
+@dataclass(frozen=True)
+class GitArtifactTelemetry:
+    commit_hash: str
+    diff_payload: str
+    commit_message: str
+    ci_build_status: str
+    test_bytes_changed: int
+    src_bytes_changed: int
+    lines_of_code_changed: int
+    new_imports: List[str]
+
+ci_build_status values:
+
+SUCCESS
+FAILURE
+
+This may be extended later with a dedicated ci_log_payload, but v1 must preserve the existing telemetry fields.
+
+EvaluatorLLM
+Protocol for the sidecar’s independent local LLM:
+
+class EvaluatorLLM(Protocol):
+    def extract_intent_vector(self, commit_msg: str, diff: str) -> np.ndarray: ...
+    def check_prerequisite_alignment(self, diff: str, north_star_doc: str) -> float: ...
+
+Purpose:
+* Infer intent from the diff and commit message.
+* Compare inferred intent against the North Star document.
+* Penalize unauthorized feature expansion and false prerequisite claims.
+
+RepoStateAnalyzer
+Protocol for AST and clone detection:
+
+class RepoStateAnalyzer(Protocol):
+    def calculate_total_complexity(self) -> int: ...
+    def calculate_ast_clone_density(self) -> float: ...
+    def get_previous_state(self) -> "RepoStateAnalyzer": ...
+
+Purpose:
+* Compute cyclomatic complexity.
+* Compute clone density.
+* Compare current and previous repository state.
+
+PackageRegistry
+Protocol for import/package validation:
+
+class PackageRegistry(Protocol):
+    def exists(self, package_name: str) -> bool: ...
+
+Purpose:
+* Verify that new imports resolve to known packages.
+* Support the API Hallucination Rate.
+
+5.3 CUSUM sequential hypothesis test
+Preserve CUSUMTracker.
+Purpose:
+* Implement Page’s Cumulative Sum algorithm.
+* Detect sustained statistical drift.
+* Accumulate only positive degradation.
+Constructor:
+
+CUSUMTracker(
+    metric_name: str,
+    drift_tolerance_std_devs: float = 2.0,
+    alarm_threshold: float = 4.0
+)
+
+Internal fields:
+
+self.metric_name
+self.k = drift_tolerance_std_devs / 2.0
+self.h = alarm_threshold
+self.cumulative_sum = 0.0
+
+Methods:
+
+update_and_check(current_value: float, mean: float, std_dev: float) -> bool
+reset() -> None
+
+update_and_check behavior:
+* Use safe_std_dev = max(std_dev, 0.001).
+* Compute z-score:
+
+z_score = (current_value - mean) / safe_std_dev
+
+* Accumulate positive drift:
+
+self.cumulative_sum = max(0.0, self.cumulative_sum + z_score - self.k)
+
+* Alarm when:
+
+self.cumulative_sum > self.h
+
+
+5.4 Drift Quotient heuristics
+Implement SidecarDriftEngine.
+Constructor:
+
+SidecarDriftEngine(
+    registry: PackageRegistry,
+    llm: EvaluatorLLM,
+    north_star_doc: str
+)
+
+Main method:
+
+compute(
+    telemetry: GitArtifactTelemetry,
+    repo: RepoStateAnalyzer,
+    baseline_vector: np.ndarray
+) -> Dict[str, float]
+
+Metrics returned:
+
+{
+    "SDI": sdi,
+    "AHR": ahr,
+    "TMCR": tmcr,
+    "CCDC": ccdc,
+    "CFS": cfs
+}
+
+Semantic Divergence Index — SDI
+Purpose:
+* Detect the Orthogonal Quality Trap.
+* The sidecar uses its own local LLM to reverse-engineer the agent’s intent from the Git diff.
+* It adversarially compares inferred intent against the North Star document.
+* It allows explicit requirements and strict prerequisites.
+* It penalizes unauthorized feature expansion.
+Computation:
+1. Extract intent vector:
+
+intent_vector = llm.extract_intent_vector(commit_message, diff_payload)
+
+1. Compare against baseline vector using cosine similarity.
+2. Clamp similarity into [0, 1].
+3. Compute:
+
+base_sdi = 1.0 - clamped_cosine_similarity
+
+1. Add adversarial alignment penalty:
+
+alignment_penalty = llm.check_prerequisite_alignment(diff_payload, north_star_doc)
+sdi = base_sdi + alignment_penalty
+
+
+API Hallucination Rate — AHR
+Purpose:
+* Zero-tolerance metric for hallucinated or unresolved APIs.
+Signals:
+* New imports that do not exist in the package registry.
+* ModuleNotFoundError tracebacks in CI logs or available failure payload.
+Computation:
+
+hallucinations = sum(
+    1 for imp in telemetry.new_imports
+    if not registry.exists(imp)
+)
+
+ahr = 1.0 if hallucinations > 0 or module_error_detected else 0.0
+
+AHR behavior:
+* Any AHR > 0 can trigger immediate quarantine, including during Nursery.
+
+Test-Mutation to Code-Resolution Ratio — TMCR
+Purpose:
+* Prevent the agent from “moving the goalposts” by editing tests more than implementation.
+Computation:
+
+tmcr = telemetry.test_bytes_changed / max(telemetry.src_bytes_changed, 1)
+
+High TMCR suggests:
+* test-loop hacking
+* weakening assertions
+* recharacterizing desired behavior instead of fixing code
+
+Cyclomatic Complexity Delta — CCDC
+Purpose:
+* Detect spaghetti logic.
+Computation:
+
+delta_complexity = (
+    repo.calculate_total_complexity()
+    - repo.get_previous_state().calculate_total_complexity()
+)
+
+ccdc = delta_complexity / max(1, telemetry.lines_of_code_changed)
+
+High CCDC suggests:
+* overly complex patches
+* local hacks
+* conditional sprawl
+* loss of architectural map
+
+Contextual Fragmentation Score — CFS
+Purpose:
+* Detect loss of global context and duplicated utilities.
+Computation:
+
+cfs = repo.calculate_ast_clone_density()
+
+High CFS suggests:
+* clone-heavy work
+* repeated helper functions
+* duplicated logic instead of reuse
+
+Flail Index — FI
+Purpose:
+* Detect brute-force patching behavior.
+Inputs:
+* sequential CI failures
+* high commit velocity
+* repeated failure/fix/failure loops
+V1 hard trigger:
+
+3 sequential CI failures => quarantine
+
+This bypasses CUSUM because repeated CI failure is an operational emergency, not just statistical drift.
+
+5.5 Master sidecar pipeline
+Implement AutonomousDriftPipeline.
+Constructor:
+
+AutonomousDriftPipeline(
+    engine: SidecarDriftEngine,
+    nursery_size: int = 30,
+    stability_threshold: int = 50
+)
+
+State:
+
+self.phase = PipelinePhase.NURSERY
+self.nursery_size = nursery_size
+self.stability_threshold = stability_threshold
+
+self.commit_count = 0
+self.stable_commits_streak = 0
+self.recent_ci_failures = 0
+
+self.nursery_history = {
+    "SDI": [],
+    "AHR": [],
+    "TMCR": [],
+    "CCDC": [],
+    "CFS": []
+}
+
+self.baselines = {}
+self.project_vector_centroid = None
+
+Trackers:
+
+{
+    "SDI": CUSUMTracker("SDI", drift_tolerance_std_devs=1.0, alarm_threshold=3.0),
+    "AHR": CUSUMTracker("AHR", drift_tolerance_std_devs=0.1, alarm_threshold=0.5),
+    "TMCR": CUSUMTracker("TMCR", drift_tolerance_std_devs=2.0, alarm_threshold=4.0),
+    "CCDC": CUSUMTracker("CCDC", drift_tolerance_std_devs=2.5, alarm_threshold=5.0),
+    "CFS": CUSUMTracker("CFS", drift_tolerance_std_devs=2.0, alarm_threshold=4.0)
+}
+
+
+process_commit(...)
+Input:
+
+process_commit(
+    telemetry: GitArtifactTelemetry,
+    current_repo_state: RepoStateAnalyzer
+) -> str
+
+Behavior:
+1. If phase is QUARANTINE, return:
+
+REJECTED_QUARANTINE_LOCK
+
+1. Increment commit count.
+2. Flail Index check:
+
+If ci_build_status == FAILURE:
+    recent_ci_failures += 1
+    if recent_ci_failures >= 3:
+        quarantine with metric FI
+Else:
+    recent_ci_failures = 0
+
+1. Extract current intent vector.
+2. Use existing project_vector_centroid if available; otherwise use current intent.
+3. Compute sidecar metrics.
+4. Dispatch to:
+    * _execute_nursery(...)
+    * _execute_monitoring(...)
+
+Nursery behavior
+Method:
+
+_execute_nursery(metrics, current_intent, telemetry) -> str
+
+Behavior:
+* If AHR > 0, trigger quarantine immediately with reason:
+
+Hallucination in Nursery
+
+* Append all metrics into nursery_history.
+* Update semantic centroid.
+* When len(nursery_history["SDI"]) >= nursery_size, graduate to monitoring.
+Return values:
+
+NURSERY_RECORDED
+NURSERY_GRADUATED
+QUARANTINE_TRIGGERED
+
+
+Monitoring behavior
+Method:
+
+_execute_monitoring(metrics, telemetry) -> str
+
+Behavior:
+* For each metric:
+    * read baseline mean/std dev
+    * update matching CUSUM tracker
+    * collect alarms if threshold exceeded
+* If alarms exist:
+    * trigger quarantine
+    * return QUARANTINE_TRIGGERED
+* If all CUSUM trackers remain at 0, increment stable streak.
+* If stable streak reaches stability_threshold, initiate re-nursery.
+Return values:
+
+MONITORING_VERIFIED
+RE_NURSERY_INITIATED
+QUARANTINE_TRIGGERED
+
+
+Re-baselining behavior
+Method:
+
+_initiate_re_nursery() -> None
+
+Behavior:
+* Return to NURSERY.
+* Flush mathematical baselines.
+* Preserve current semantic centroid.
+* Reset all CUSUM trackers.
+Purpose:
+* Allows safe architectural evolution.
+* Prevents Anchor from permanently freezing a project at its first baseline.
+
+Quarantine behavior
+Method:
+
+_trigger_quarantine(commit_hash, alarms) -> None
+
+Behavior:
+* Set phase to QUARANTINE.
+* Record alarms.
+* In v1 local mode:
+    * write quarantine state to state.json
+    * append drift-flag to trajectory.jsonl
+    * cause /anchor-status to show quarantine
+    * cause /anchor-audit-pr to emit blocking enforcement language
+* In future hosted mode:
+    * fire webhooks
+    * lock branch
+    * alert operators
+
+5.6 Sidecar report shape
+Normalize sidecar output into Anchor’s DriftReport format:
+
+{
+  "severity": "none|low|medium|high|quarantine",
+  "phase": "NURSERY|MONITORING|QUARANTINE",
+  "decision": "NURSERY_RECORDED|NURSERY_GRADUATED|MONITORING_VERIFIED|RE_NURSERY_INITIATED|QUARANTINE_TRIGGERED|REJECTED_QUARANTINE_LOCK",
+  "metrics": {
+    "SDI": 0.0,
+    "AHR": 0.0,
+    "TMCR": 0.0,
+    "CCDC": 0.0,
+    "CFS": 0.0,
+    "FI": 0.0
+  },
+  "alarms": [
+    {
+      "metric": "SDI|AHR|TMCR|CCDC|CFS|FI",
+      "reason": "..."
+    }
+  ],
+  "message": "..."
+}
+
+The Node sidecar-bridge.mjs converts this into the same shape used by drift.mjs.
+
+5.7 Integration points with Anchor
+The sidecar is not a separate product. It is Anchor’s statistical evaluation engine.
+Anchor area	Sidecar integration
+/anchor-status	Shows sidecar phase, latest metrics, quarantine state
+/anchor-sync	Feeds new commits into sidecar
+/anchor-audit-pr	Includes Drift Quotient metrics in PR audit
+/anchor-fix-ci	Feeds CI failures into Flail Index
+anchor.getDriftReport MCP tool	Returns practical + statistical drift signals
+trajectory.jsonl	Records sidecar decisions as drift-flag events
+plan.md	Used as the sidecar North Star document
+ci-watch.mjs	Escalates repeated CI failures into FI quarantine
+pr-audit.mjs	Converts sidecar alarms into enforcement comments
+6. Phase 4 — Documentation, marketplace, and dogfood CI
+6.1 Top-level README.md
+Replace template framing with these sections:
+
+# Anchor
+
+## What is Anchor?
+
+## Mission: prevent drift
+
+## What Anchor watches
+
+## Anchor architecture
+
+## Install
+
+## Opt a repo in
+
+## Commands
+
+## How Anchor keeps CI green
+
+## How Anchor maintains trajectory memory
+
+## How Anchor audits PRs
+
+## Drift Quotient sidecar
+
+## Environment variables
+
+## Validation
+
+## FAQ
+
+Must include:
+
+node scripts/validate-template.mjs
+
+Must not mention:
+
+starter-simple
+starter-advanced
+two starter plugins
+single vs multi-plugin
+
+
+6.2 plugins/anchor/README.md
+Must include full component map:
+
+rules/
+skills/
+agents/
+commands/
+hooks/
+scripts/
+mcp/
+sidecar/
+templates/
+
+Must document env vars:
+Env var	Purpose
+CURSOR_API_KEY	Required for cloud agent creation and messaging
+GITHUB_TOKEN	Required for GitHub Actions, PR reads, and PR comments
+ANCHOR_HOME	Defaults to ~/.anchor
+ANCHOR_MODEL_ID	Defaults to composer-2
+optional sidecar env	For future local LLM / analyzer configuration
+6.3 Architecture docs
+Remove the old “add a plugin” framing.
+Rewrite:
+
+docs/add-a-plugin.md
+
+as:
+
+docs/architecture.md
+
+Describe data flow:
+
+Commands → CLI → SDK/Octokit/state files
+Hooks → state files/trajectory
+MCP → cloud agent tools
+GitHub/CI → telemetry → sidecar
+Sidecar → DriftReport → PR audit/status/quarantine
+
+Cross-link from:
+* top-level README
+* plugins/anchor/README.md
+
+6.4 Drift heuristics docs
+Create:
+
+docs/drift-heuristics.md
+
+Must include a table covering both practical heuristics and Drift Quotient metrics.
+Signal	Source	Detects	Enforcement behavior
+Verbosity smell	PR description + diff stats	padding / evasive PR	warn or block
+Infra rat-hole smell	file paths + branch + plan	infra drift	require plan note or infra prefix
+Evasion smell	PR prose	placeholders / deferral	block if severe
+Plan drift smell	files + active phase	wrong scope	require plan alignment
+SDI	LLM intent vector + North Star	semantic divergence / orthogonal quality trap	CUSUM or direct severity
+AHR	imports + CI logs	hallucinated APIs	zero-tolerance quarantine
+TMCR	test bytes vs source bytes	test-loop hacking	CUSUM drift
+CCDC	AST complexity delta / LOC	spaghetti logic	CUSUM drift
+CFS	AST clone density	duplicated utilities / lost context	CUSUM drift
+FI	sequential CI failures + velocity	flailing	immediate quarantine after threshold
+6.5 Dogfood CI
+Add:
+
+.github/workflows/validate.yml
+
+It runs on every PR:
+
+node scripts/validate-template.mjs
+node --test plugins/anchor/scripts/lib/*.test.mjs
+python -m unittest discover plugins/anchor/sidecar
+
+Also include static gates where practical:
+
+find plugins/anchor -name "*.mjs" -print0 | xargs -0 -n1 node --check
+find plugins/anchor -name "*.sh" -print0 | xargs -0 -n1 bash -n
+find plugins/anchor -name "*.json" -print0 | xargs -0 -n1 jq -e .
+
+Add:
+
+.github/CODEOWNERS
+
+Assign:
+
+plugins/anchor/** @maceip
+
+Anchor’s own CI becomes something the ci-green-keeper can dogfood.
+
+7. Phase 5 — Testing strategy
+7.1 Static and contract tests
+Run after every phase:
+
+node scripts/validate-template.mjs
+
+Also run:
+
+find plugins/anchor -name "*.mjs" -print0 | xargs -0 -n1 node --check
+find plugins/anchor -name "*.sh" -print0 | xargs -0 -n1 bash -n
+find plugins/anchor -name "*.json" -print0 | xargs -0 -n1 jq -e .
+
+Requirements:
+* Validator must exit 0.
+* Every rule, skill, agent, and command file must have valid frontmatter.
+* Every .sh shim must be executable and syntactically valid.
+* Every .json file must parse.
+
+7.2 Node unit tests
+Create:
+
+plugins/anchor/scripts/lib/drift.test.mjs
+plugins/anchor/scripts/lib/trajectory.test.mjs
+plugins/anchor/scripts/lib/plan.test.mjs
+plugins/anchor/scripts/lib/state.test.mjs
+
+drift.test.mjs
+Golden tests for:
+* verbositySmell
+* infraRatHoleSmell
+* evasionSmell
+* planDriftSmell
+* compose
+trajectory.test.mjs
+Tests:
+* append
+* tail
+* JSONL roundtrip
+* corruption recovery by truncating trailing partial line
+plan.test.mjs
+Tests:
+* parser / serializer roundtrip
+* required sections
+* active phase extraction
+state.test.mjs
+Tests:
+* atomic write semantics
+* write temp file then rename
+* missing state handling
+* no opt-in is not an error
+
+7.3 Node offline integration tests
+Create:
+
+plugins/anchor/scripts/lib/cursor-agent.test.mjs
+plugins/anchor/scripts/lib/github.test.mjs
+plugins/anchor/scripts/lib/sidecar-bridge.test.mjs
+
+cursor-agent.test.mjs
+Use a mock @cursor/sdk shim injected via dependency parameter.
+Assert:
+* Agent.create called with expected shape.
+* cloud.repos includes repo URL and starting ref.
+* autoCreatePR: true.
+* agent.send receives persona-prefixed prompt.
+* Missing CURSOR_API_KEY gives helpful error.
+github.test.mjs
+Use fake fetch / fake Octokit behavior.
+Assert:
+* failing workflow runs are listed
+* PR metadata and diff are fetched
+* comments are posted or updated
+* no-token mode no-ops clearly
+sidecar-bridge.test.mjs
+Assert:
+* Node can call the sidecar in dry-run/mock mode.
+* Sidecar JSON is normalized into Anchor DriftReport.
+* Sidecar failure does not crash PR audit.
+
+7.4 Python sidecar tests
+Use unittest or dependency-light tests under:
+
+plugins/anchor/sidecar/anchor_drift_quotient/tests/
+
+Tests:
+test_cusum.py
+* positive drift accumulates
+* below-threshold drift does not alarm
+* reset() clears cumulative sum
+* safe_std_dev = max(std_dev, 0.001) prevents division instability
+test_heuristics.py
+Use fake implementations of:
+* EvaluatorLLM
+* RepoStateAnalyzer
+* PackageRegistry
+Assert:
+* SDI increases when intent diverges from baseline
+* alignment penalty increases SDI
+* AHR becomes 1.0 for missing packages
+* TMCR computes test_bytes_changed / max(src_bytes_changed, 1)
+* CCDC normalizes complexity delta by LOC
+* CFS returns clone density
+test_pipeline.py
+Assert:
+* starts in NURSERY
+* records nursery metrics
+* graduates after nursery_size
+* computes baselines
+* monitoring returns MONITORING_VERIFIED when stable
+* CUSUM alarm triggers quarantine
+* stable streak triggers re-nursery
+* re-nursery preserves semantic centroid and resets trackers
+test_flail_index.py
+Assert:
+* three sequential CI failures trigger quarantine
+* successful CI resets recent_ci_failures
+* quarantine returns REJECTED_QUARANTINE_LOCK on later commits
+
+7.5 CLI smoke tests
+Offline, no API keys:
+
+node plugins/anchor/scripts/anchor-cli.mjs status
+
+Expected:
+
+not opted in
+
+Exit:
+
+0
+
+Then:
+
+ANCHOR_HOME="$(mktemp -d)" \
+node plugins/anchor/scripts/anchor-cli.mjs opt-in \
+  --no-cloud \
+  --repo-url https://github.com/example/x
+
+Expected:
+
+~/.anchor/example__x/state.json
+
+or, with temporary ANCHOR_HOME:
+
+$ANCHOR_HOME/example__x/state.json
+
+Exit:
+
+0
+
+Then:
+
+ANCHOR_HOME="<same tmpdir>" \
+node plugins/anchor/scripts/anchor-cli.mjs status
+
+Expected:
+* opted-in state prints
+* no API key error is not fatal
+* cloud agent is shown as not attached or skipped
+* sidecar phase defaults to NURSERY
+
+7.6 Hook smoke tests
+Fresh tmpdir, no Anchor state:
+
+plugins/anchor/scripts/hook-session-start.sh
+plugins/anchor/scripts/hook-after-file-edit.sh
+plugins/anchor/scripts/hook-before-submit-prompt.sh
+plugins/anchor/scripts/hook-session-end.sh
+
+Expected:
+* exit 0
+* no stderr noise
+* no blocking output
+After opt-in:
+* all hooks exit 0
+* session-end appends exactly one session-summary row
+* infra rat-hole warning appears only when threshold is met
+
+7.7 Manual cloud smoke test
+Gated behind CURSOR_API_KEY.
+Against a throwaway repo:
+
+node plugins/anchor/scripts/anchor-cli.mjs opt-in \
+  --repo-url https://github.com/example/throwaway
+
+Verify:
+* agent.id is persisted in state.json
+* no secrets are written
+* agent.send("ping") returns a streamable run
+* run log is written under:
+
+~/.anchor/<slug>/runs/
+
+Not gated in CI.
+
+8. Overall acceptance criteria
+The project is acceptable when:
+
+git ls-tree -r HEAD --name-only | rg "starter-simple|starter-advanced"
+
+returns no matches.
+And:
+
+node scripts/validate-template.mjs
+
+prints:
+
+Validation passed.
+
+And:
+
+node --test plugins/anchor/scripts/lib/*.test.mjs
+python -m unittest discover plugins/anchor/sidecar
+
+pass.
+Also required:
+* CLI smoke tests pass in a fresh tmpdir with no env vars.
+* Hook smoke tests pass in non-opted-in and opted-in repos.
+* Top-level README references only Anchor.
+* Plugin README accurately describes existing files.
+* docs/architecture.md and docs/drift-heuristics.md exist.
+* .github/workflows/validate.yml exists.
+* .github/CODEOWNERS exists.
+* state.json never stores API keys.
+* ~/.anchor/ remains outside the repo.
+* Drift Quotient sidecar supports Nursery, Monitoring, Quarantine, and Re-Baselining.
+* AHR and FI can trigger immediate quarantine.
+* Practical PR heuristics and statistical sidecar metrics are both included in anchor.getDriftReport.
+
+9. Risks and mitigations
+Risk	Mitigation
+@cursor/sdk is beta and may shift	Pin to a caret range and isolate all SDK calls behind scripts/lib/cursor-agent.mjs. Treat shape mismatches as runtime errors with a clear “upgrade your @cursor/sdk” message.
+Validator flags missing frontmatter	After every phase, run node scripts/validate-template.mjs and fix failures before continuing.
+Hooks slow Cursor sessions	Hooks must no-op when not opted in, target <200ms, and exit 0. Use minimal synchronous file IO.
+Cloud agent costs	Cloud-agent invocations are explicit: /anchor-fix-ci, /anchor-audit-pr, plan regeneration, or optional daemon. Do not spawn a cloud agent on every commit.
+Secrets leakage	Never store CURSOR_API_KEY or GITHUB_TOKEN in state.json. Read them from env at call time. Store Anchor state under ~/.anchor, outside the repo.
+GitHub rate limits	Use Octokit conditional requests and ETag cache under state cache where practical.
+Frontmatter parser is strict	Add a dev-only _lint-frontmatter.mjs or equivalent check to verify rules, skills, agents, and commands before commit.
+Sidecar false positives from semantic LLM checks	Keep reports evidence-based. Use Nursery baselines, CUSUM thresholds, plan links, and human-editable plan.md.
+Sidecar baseline contamination	AHR remains zero-tolerance even in Nursery. FI bypasses CUSUM. Re-nursery preserves semantic centroid but flushes mathematical baselines.
+Python/Node boundary becomes fragile	Keep sidecar-bridge.mjs strict: JSON in, JSON out. Add offline integration tests. Sidecar failure must degrade gracefully into practical heuristic-only audits.
+Orthogonal Quality Trap is subtle	SDI must include both vector divergence and adversarial prerequisite alignment against the North Star document.
+Test-loop hacking appears as green CI	TMCR explicitly measures test mutation volume against source resolution volume. Green CI alone is not enough.
+10. Out of scope for v1
+These remain out of scope:
+* Hosted webhook receiver.
+* Hosted dashboards.
+* Multi-org metrics UI.
+* Any non-GitHub VCS.
+* Persistent SQLite trajectory store.
+* Full hosted quarantine enforcement.
+The plugin may document how to point Cursor cloud-agent webhooks at an HTTPS endpoint and may ship reference docs or examples, but v1 does not need to run a hosted service.
+JSONL is sufficient for v1 trajectory storage.
+The Drift Quotient sidecar may run locally, through CLI, through the optional daemon, or through future webhook ingestion, but the v1 requirement is artifact evaluation and Anchor integration, not hosted infrastructure.
+
+11. Execution order
+Each commit must leave:
+
+node scripts/validate-template.mjs
+
+green.
+Commit 1
+
+anchor: reshape repo
+
+Includes:
+* delete plugins/starter-simple
+* rename plugins/starter-advanced to plugins/anchor
+* rewrite marketplace manifest
+* rewrite plugin manifest
+* update top-level README enough to remove starter framing
+Validation:
+
+node scripts/validate-template.mjs
+
+
+Commit 2
+
+anchor: rules skills agents commands for anti-drift
+
+Includes:
+* rules
+* skills
+* agents
+* commands
+Validation:
+
+node scripts/validate-template.mjs
+
+
+Commit 3
+
+anchor: rewire hooks and mcp config
+
+Includes:
+* hooks/hooks.json
+* hook shell shims
+* hook Node implementations
+* mcp.json
+Validation:
+
+node scripts/validate-template.mjs
+bash -n plugins/anchor/scripts/hook-*.sh
+
+
+Commit 4
+
+anchor: bootstrap node toolchain
+
+Includes:
+* package.json
+* package-lock.json
+* CLI entrypoint
+* layout stubs
+* state/path/trajectory/plan helpers
+Validation:
+
+node scripts/validate-template.mjs
+node --check plugins/anchor/scripts/anchor-cli.mjs
+
+
+Commit 5
+
+anchor: sdk github drift pr audit and ci watch
+
+Includes:
+* cursor-agent.mjs
+* github.mjs
+* drift.mjs
+* pr-audit.mjs
+* ci-watch.mjs
+* CLI subcommands
+Validation:
+
+node scripts/validate-template.mjs
+node --test plugins/anchor/scripts/lib/*.test.mjs
+
+
+Commit 6
+
+anchor: mcp server and environment template
+
+Includes:
+* MCP server
+* MCP tools
+* templates/environment.json.example
+Validation:
+
+node scripts/validate-template.mjs
+node --check plugins/anchor/mcp/anchor-server/index.mjs
+
+
+Commit 7
+
+anchor: drift quotient sidecar
+
+Includes:
+* Python sidecar package
+* PipelinePhase
+* GitArtifactTelemetry
+* EvaluatorLLM
+* RepoStateAnalyzer
+* PackageRegistry
+* CUSUMTracker
+* SidecarDriftEngine
+* AutonomousDriftPipeline
+* SDI, AHR, TMCR, CCDC, CFS, FI
+* Nursery, Monitoring, Quarantine, Re-Baselining
+* Node sidecar-bridge.mjs
+Validation:
+
+node scripts/validate-template.mjs
+python -m unittest discover plugins/anchor/sidecar
+
+
+Commit 8
+
+anchor: docs and dogfood ci
+
+Includes:
+* top-level README rewrite
+* plugin README rewrite
+* docs/architecture.md
+* docs/drift-heuristics.md
+* .github/workflows/validate.yml
+* .github/CODEOWNERS
+Validation:
+
+node scripts/validate-template.mjs
+
+
+Commit 9
+
+anchor: tests and smoke gates
+
+Includes:
+* remaining Node unit tests
+* offline integration tests
+* Python sidecar tests
+* CLI smoke tests
+* hook smoke tests
+Validation:
+
+node scripts/validate-template.mjs
+node --test plugins/anchor/scripts/lib/*.test.mjs
+python -m unittest discover plugins/anchor/sidecar
+
+
+Final pre-push gate
+Run:
+
+node scripts/validate-template.mjs \
+  && node --test plugins/anchor/scripts/lib/*.test.mjs \
+  && python -m unittest discover plugins/anchor/sidecar
+
+Then:
+
+git push origin main
+
+Anchor is complete for v1 when it is no longer a starter plugin repo, can opt a repo in, can maintain plan and trajectory state, can attach a durable Cursor cloud agent, can keep CI green, can audit PR drift, and can compute a Drift Quotient from black-box Git/CI artifacts without needing access to an agent’s internal memory or prompt queue.
+x

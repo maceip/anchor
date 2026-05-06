@@ -1,0 +1,14 @@
+---
+description: Anchor's rule that red CI is treated as an outage and must be addressed before lower-priority work.
+alwaysApply: true
+---
+
+# CI Green Mandate
+
+Red CI is an outage.
+
+- Anchor's first priority is restoring green CI.
+- Only after CI is green does Anchor consider other work.
+- Do not ignore failing GitHub Actions runs.
+- Prefer the smallest targeted fix that returns the workflow to green.
+- Every CI failure and repair attempt is recorded in the per-repo trajectory.

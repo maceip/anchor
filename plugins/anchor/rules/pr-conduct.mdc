@@ -1,0 +1,17 @@
+---
+description: PR description and conduct expectations for Anchor-audited changes.
+alwaysApply: false
+globs:
+  - "**/.github/**"
+  - "**/*.md"
+---
+
+# PR Conduct
+
+PR descriptions must be direct, concise, and linked to the plan.
+
+- No apologetic prose, padding, or "quick aside" language.
+- Always link to the relevant plan section or phase.
+- State exactly what changed, why it was required, and how it was verified (tests, manual run, CI).
+- Never bury unfinished work behind "for now", "out of scope", "follow-up PR", or placeholder comments.
+- If the PR deviates from the plan, call out the deviation and obtain explicit approval via plan update first.

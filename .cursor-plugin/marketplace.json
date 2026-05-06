@@ -1,23 +1,18 @@
 {
-  "name": "cursor-plugin-starters",
+  "name": "anchor-marketplace",
   "owner": {
-    "name": "Your Org",
-    "email": "plugins@example.com"
+    "name": "maceip",
+    "email": "anchor@maceip.dev"
   },
   "metadata": {
-    "description": "Starter marketplace template for Cursor plugins",
+    "description": "Anchor — anti-drift Cursor plugin that supervises a per-repo cloud agent.",
     "version": "0.1.0"
   },
   "plugins": [
     {
-      "name": "starter-simple",
-      "source": "./plugins/starter-simple",
-      "description": "Minimal plugin with rules and skills only"
-    },
-    {
-      "name": "starter-advanced",
-      "source": "./plugins/starter-advanced",
-      "description": "Full-featured plugin with rules, skills, agents, commands, hooks, and MCP"
+      "name": "anchor",
+      "source": "./plugins/anchor",
+      "description": "Per-repo cloud agent that keeps CI green, maintains trajectory memory, and pushes back on drifting PRs."
     }
   ]
 }

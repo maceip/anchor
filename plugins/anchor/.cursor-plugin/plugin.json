@@ -1,13 +1,18 @@
 {
-  "name": "starter-advanced",
-  "displayName": "Advanced Starter",
+  "name": "anchor",
+  "displayName": "Anchor",
   "version": "0.1.0",
-  "description": "Full-featured Cursor plugin starter with rules, skills, agents, commands, hooks, and MCP.",
-  "author": {
-    "name": "Your Org",
-    "email": "plugins@example.com"
-  },
+  "description": "Per-repo cloud agent that keeps CI green, maintains trajectory memory, and pushes back on drifting PRs.",
+  "keywords": [
+    "cursor",
+    "plugin",
+    "anti-drift",
+    "ci",
+    "trajectory",
+    "pr-review",
+    "cloud-agent"
+  ],
+  "author": "maceip",
   "license": "MIT",
-  "keywords": ["cursor", "plugin", "rules", "skills", "agents", "commands", "hooks", "mcp"],
   "logo": "assets/logo.svg"
 }
