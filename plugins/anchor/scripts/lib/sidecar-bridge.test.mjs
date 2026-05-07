@@ -15,12 +15,15 @@ test("evaluateTelemetry calls sidecar and stores DriftReport", async () => {
     commitMessage: "implement anchor",
     ciBuildStatus: "SUCCESS",
     srcBytesChanged: 10,
-    linesOfCodeChanged: 2
+    linesOfCodeChanged: 2,
+    actor_id: "agent-1"
   }, env);
   assert.equal(result.ok, true);
   assert.equal(result.report.phase, "NURSERY");
+  assert.equal(result.report.actor_id, "agent-1");
   const state = await readState("repo", env);
   assert.equal(state.sidecar.lastDecision.decision, "NURSERY_RECORDED");
+  assert.equal(state.sidecar.lastDecision.actor_id, "agent-1");
 });
 
 test("sidecar failure does not crash PR audit", async () => {

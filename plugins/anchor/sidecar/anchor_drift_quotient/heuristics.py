@@ -100,9 +100,19 @@ class SidecarDriftEngine:
         alignment_penalty = self.llm.check_prerequisite_alignment(telemetry.diff_payload, self.north_star_doc)
         sdi = clamp(base_sdi + alignment_penalty)
 
-        hallucinations = sum(1 for imp in telemetry.new_imports if not self.registry.exists(imp))
-        module_error_detected = bool(MODULE_ERROR_RE.search(telemetry.ci_log_payload))
-        ahr = 1.0 if hallucinations > 0 or module_error_detected else 0.0
+        # Production AHR: prefer precomputed value + breakdown from JS side (real fs + Wayback)
+        # Falls back to registry only if no ahr attached (should not happen after wiring)
+        ahr = float(getattr(telemetry, "ahr", 0.0) or 0.0)
+        breakdown = getattr(telemetry, "ahr_breakdown", {}) or {}
+
+        if ahr == 0.0 and telemetry.new_imports:
+            # legacy fallback (kept for compatibility)
+            hallucinations = sum(1 for imp in telemetry.new_imports if not self.registry.exists(imp))
+            module_error_detected = bool(MODULE_ERROR_RE.search(telemetry.ci_log_payload))
+            if hallucinations > 0 or module_error_detected:
+                ahr = 1.0
+            else:
+                ahr = 0.0
 
         tmcr = telemetry.test_bytes_changed / max(telemetry.src_bytes_changed, 1)
         delta_complexity = (
@@ -123,6 +133,44 @@ class SidecarDriftEngine:
 
 def flail_index(recent_ci_failures: int) -> float:
     return min(1.0, max(0.0, recent_ci_failures / 3))
+
+
+# === New per-actor deception & drift signals (from 2025-2026 research) ===
+
+def non_failure_concealment_rate(unreported_failures: int, total_failures: int) -> float:
+    if total_failures == 0:
+        return 0.0
+    return min(1.0, unreported_failures / total_failures)
+
+
+def file_fabrication_rate(fabricated_files: int, total_downloads: int) -> float:
+    if total_downloads == 0:
+        return 0.0
+    return min(1.0, fabricated_files / total_downloads)
+
+
+def silent_source_substitution_rate(unauthorized_switches: int, total_reads: int) -> float:
+    if total_reads == 0:
+        return 0.0
+    return min(1.0, unauthorized_switches / total_reads)
+
+
+def hallucinated_downstream_answer_rate(hallucinated_answers: int, downstream_tasks: int) -> float:
+    if downstream_tasks == 0:
+        return 0.0
+    return min(1.0, hallucinated_answers / downstream_tasks)
+
+
+def intentional_constraint_violation_rate(violations: int, total_steps: int) -> float:
+    if total_steps == 0:
+        return 0.0
+    return min(1.0, violations / total_steps)
+
+
+def reference_hallucination_rate(hallucinated_reference_urls: int, reference_urls: int) -> float:
+    if reference_urls == 0:
+        return 0.0
+    return min(1.0, hallucinated_reference_urls / reference_urls)
 
 
 def cosine_similarity(left: Vector, right: Vector) -> float:

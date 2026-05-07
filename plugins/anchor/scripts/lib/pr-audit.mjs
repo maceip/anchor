@@ -15,6 +15,8 @@ export async function auditPR({ slug, repo, number, plan = "", branchName = "", 
   const stats = diffStatsFromPatch(patch);
   const description = [pr.title, pr.body || ""].join("\n\n");
   let sidecar = await getSidecarReport(slug, env);
+  const actorId = pr.user?.login || pr.head?.user?.login || "unknown";
+
   try {
     const evaluated = await evaluateTelemetry(slug, {
       commitHash: pr.head?.sha || `pr-${number}`,
@@ -24,7 +26,11 @@ export async function auditPR({ slug, repo, number, plan = "", branchName = "", 
       testBytesChanged: stats.files.filter((file) => /(^|\/)(test|tests|spec|__tests__)(\/|$)|\.(test|spec)\./i.test(file)).length,
       srcBytesChanged: Math.max(0, stats.additions + stats.deletions),
       linesOfCodeChanged: stats.additions + stats.deletions,
-      newImports: extractImports(patch)
+      newImports: extractImports(patch),
+      actor_id: actorId,
+      // Basic IDR: plan-drift smell already computed below; we also pass raw count
+      constraint_violations: planDriftSmell({ files: stats.files, plan }).score >= 0.5 ? 1 : 0,
+      total_steps: 1
     }, env);
     if (evaluated.ok) {
       sidecar = {

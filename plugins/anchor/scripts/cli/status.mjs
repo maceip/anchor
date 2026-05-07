@@ -23,9 +23,49 @@ export async function run() {
     `sidecarMetrics: ${JSON.stringify(state.sidecar?.lastDecision?.metrics || {})}`,
     `sidecarDecision: ${state.sidecar?.lastDecision?.decision || "none"}`,
     `lastSyncedSha: ${state.lastSyncedSha || "none"}`,
+    "recentActors:",
+    ...getRecentActors(events),
     "trajectoryTail:",
-    ...events.map((event) => `- ${event.ts} ${event.type} ${JSON.stringify(event.data)}`)
+    ...events.slice(-3).map((event) => `- ${event.ts} ${event.type} ${JSON.stringify(event.data)}`)
   ].join("\n");
+}
+
+function getRecentActors(events) {
+  const actors = new Map();
+  for (const ev of events) {
+    const id = ev.data?.actor_id || ev.data?.author || ev.data?.committer || ev.data?.actorId;
+    if (id && id !== "unknown") {
+      if (!actors.has(id)) {
+        actors.set(id, { lastSeen: ev.ts, events: 0, metrics: null });
+      }
+      actors.get(id).events += 1;
+      actors.get(id).lastSeen = ev.ts;
+
+      // Capture latest known per-actor drift metrics from drift-flag events
+      if (ev.type === "drift-flag" && ev.data?.report?.metrics) {
+        actors.get(id).metrics = ev.data.report.metrics;
+        if (ev.data.report.ahr_breakdown) {
+          actors.get(id).ahrBreakdown = ev.data.report.ahr_breakdown;
+        }
+      }
+    }
+  }
+  if (actors.size === 0) return ["  (no actor data yet)"];
+
+  return Array.from(actors.entries()).slice(0, 6).map(([id, info]) => {
+    const metricsStr = info.metrics
+      ? Object.entries(info.metrics)
+          .filter(([k]) => ["NFR","FFR","DFR","HFR","IDR","SDI","AHR"].includes(k))
+          .map(([k,v]) => `${k}:${v}`)
+          .join(" ")
+      : "";
+    let ahrDetail = "";
+    if (info.ahrBreakdown) {
+      const b = info.ahrBreakdown;
+      ahrDetail = ` AHR[h:${b.hallucinated?.length || 0} s:${b.stale?.length || 0} clean:${b.verified_clean || 0}]`;
+    }
+    return `  ${id} — ${info.events} events, last ${info.lastSeen}${metricsStr ? ` | ${metricsStr}` : ""}${ahrDetail}`;
+  });
 }
 
 async function resolveStatusSlug(env = process.env) {

@@ -2,15 +2,19 @@
   "name": "anchor",
   "displayName": "Anchor",
   "version": "0.1.0",
-  "description": "Per-repo cloud agent that keeps CI green, maintains trajectory memory, and pushes back on drifting PRs.",
+  "description": "One plugin. Working dashboard. One-command onboarding. Real anti-drift with AHR (hallucination detection via registry + Wayback).",
   "keywords": [
     "cursor",
     "plugin",
     "anti-drift",
+    "dashboard",
+    "onboarding",
+    "hallucination",
+    "ahr",
+    "urlhealth",
+    "quarantine",
     "ci",
-    "trajectory",
-    "pr-review",
-    "cloud-agent"
+    "trajectory"
   ],
   "author": "maceip",
   "license": "MIT",

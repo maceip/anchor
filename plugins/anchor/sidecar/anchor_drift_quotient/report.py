@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from .protocols import DriftReport, MetricAlarm, PipelinePhase
 
-ALL_METRICS = ("SDI", "AHR", "TMCR", "CCDC", "CFS", "FI")
+ALL_METRICS = (
+    "SDI", "AHR", "TMCR", "CCDC", "CFS", "FI",
+    "NFR", "FFR", "DFR", "HFR", "IDR", "RHR"
+)
 
 
 def normalize_metrics(metrics: dict[str, float]) -> dict[str, float]:
@@ -14,7 +17,7 @@ def normalize_metrics(metrics: dict[str, float]) -> dict[str, float]:
 def severity_for(phase: PipelinePhase, alarms: tuple[MetricAlarm, ...], metrics: dict[str, float]) -> str:
     if phase is PipelinePhase.QUARANTINE:
         return "quarantine"
-    if any(alarm.metric in {"AHR", "FI"} for alarm in alarms):
+    if any(alarm.metric in {"AHR", "FI", "NFR", "FFR", "DFR", "HFR", "IDR", "RHR"} for alarm in alarms):
         return "quarantine"
     max_metric = max(metrics.values(), default=0.0)
     if max_metric >= 0.8:
@@ -41,6 +44,7 @@ def build_report(
     decision: str,
     metrics: dict[str, float],
     alarms: tuple[MetricAlarm, ...] = (),
+    ahr_breakdown: dict | None = None,
 ) -> DriftReport:
     normalized = normalize_metrics(metrics)
     severity = severity_for(phase, alarms, normalized)
@@ -51,4 +55,5 @@ def build_report(
         metrics=normalized,
         alarms=alarms,
         message=message_for(severity, decision, alarms),
+        ahr_breakdown=ahr_breakdown or {},
     )

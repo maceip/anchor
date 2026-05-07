@@ -4,9 +4,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 ANCHOR_HOME="$(mktemp -d)"
 REPO="$(mktemp -d)"
+CURSOR_PROJECTS_HOME="$(mktemp -d)"
 
 cleanup() {
-  rm -rf "$ANCHOR_HOME" "$REPO"
+  rm -rf "$ANCHOR_HOME" "$REPO" "$CURSOR_PROJECTS_HOME"
 }
 trap cleanup EXIT
 
@@ -23,6 +24,25 @@ ANCHOR_HOME="$ANCHOR_HOME" node "$ROOT/plugins/anchor/scripts/anchor-cli.mjs" op
 test -f "$ANCHOR_HOME/example__x/state.json"
 ANCHOR_HOME="$ANCHOR_HOME" node "$ROOT/plugins/anchor/scripts/anchor-cli.mjs" status | grep -q "sidecarPhase: NURSERY"
 ANCHOR_HOME="$ANCHOR_HOME" node "$ROOT/plugins/anchor/scripts/anchor-cli.mjs" opt-in --no-cloud >/dev/null
+printf 'ada\n' >> README.md
+git add README.md
+GIT_AUTHOR_NAME="Ada Anchor" GIT_AUTHOR_EMAIL="ada@example.com" \
+GIT_COMMITTER_NAME="Ada Anchor" GIT_COMMITTER_EMAIL="ada@example.com" \
+  git commit -q -m "feat: ada dashboard data"
+printf 'grace\n' >> README.md
+git add README.md
+GIT_AUTHOR_NAME="Grace Hopper" GIT_AUTHOR_EMAIL="grace@example.com" \
+GIT_COMMITTER_NAME="Grace Hopper" GIT_COMMITTER_EMAIL="grace@example.com" \
+  git commit -q -m "fix: grace dashboard data"
+ANCHOR_HOME="$ANCHOR_HOME" node "$ROOT/plugins/anchor/scripts/anchor-cli.mjs" sync | grep -q "commit event"
+CURSOR_PROJECTS_HOME="$CURSOR_PROJECTS_HOME" ANCHOR_HOME="$ANCHOR_HOME" node "$ROOT/plugins/anchor/scripts/anchor-cli.mjs" dashboard >/tmp/anchor-dashboard.out
+grep -q "anchor-dashboard.canvas.tsx" /tmp/anchor-dashboard.out
+DASHBOARD_FILE="$(awk -F'canvas: ' '/^canvas: / {print $2}' /tmp/anchor-dashboard.out)"
+test -f "$DASHBOARD_FILE"
+grep -q "Ada Anchor" "$DASHBOARD_FILE"
+grep -q "Grace Hopper" "$DASHBOARD_FILE"
+grep -q "Repository Enrollment" "$DASHBOARD_FILE"
+grep -q "Committer Scores" "$DASHBOARD_FILE"
 
 NO_STATE_HOME="$(mktemp -d)"
 for hook in hook-session-start hook-after-file-edit hook-before-submit-prompt hook-session-end; do

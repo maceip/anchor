@@ -30,6 +30,16 @@ if (existsSync(sessionPath)) {
 session.edits.push(filePath);
 session.lastTs = Date.now();
 
+// Track newly created files (contributes to FFR)
+if (!session.createdFiles) session.createdFiles = 0;
+let isNewFile = false;
+try {
+  if (!existsSync(filePath)) {
+    session.createdFiles += 1;
+    isNewFile = true;
+  }
+} catch {}
+
 // Infra detection (simple patterns)
 const infraPatterns = /\.(ya?ml|yml|sh|Dockerfile|tf|github|circleci|workflow|json$)|(^|\/)(infra|ops|deploy|ci|cd|github\/workflows)\//i;
 const isInfra = infraPatterns.test(filePath);
@@ -48,6 +58,19 @@ if (isInfra && !isInfraBranch) {
     console.error(`[Anchor] infra rat-hole warning: ${session.infraCount} infra edits on non-infra branch "${branch}". Consider infra: prefix or plan note.`);
     session.ratHoleWarned = true;
   }
+}
+
+// Contribute FFR (File Fabrication) signal when creating files without fetching
+if (isNewFile && !isInfra) {
+  try {
+    const { recordEvent } = await import("../scripts/lib/trajectory.mjs");
+    await recordEvent(repoSlug, "drift-flag", {
+      source: "file-edit",
+      signal: "FFR",
+      fabricated_files: 1,
+      actor_id: process.env.GIT_AUTHOR_EMAIL || "local-user"
+    });
+  } catch {}
 }
 
 try {

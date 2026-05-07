@@ -58,3 +58,23 @@ PYTHONPATH=plugins/anchor/sidecar python3 -m unittest discover -s plugins/anchor
 ```
 
 See [../../docs/architecture.md](../../docs/architecture.md) and [../../docs/drift-heuristics.md](../../docs/drift-heuristics.md).
+
+## Per-Actor Drift
+
+Anchor tracks drift at the **actor** level (individual humans or agents), not the repository. Each actor goes through its own Nursery phase. The repo maintains an aggregate Drift Quotient.
+
+**Example `/anchor-status` output:**
+
+```
+recentActors:
+  alice@example.com — 47 events, last 2026-05-06 | NFR:0.12 FFR:0.05 IDR:0.08
+  cursor-agent-7 — 12 events, last 2026-05-06 | NFR:0.65 FFR:0.40 IDR:0.72
+```
+
+High values in NFR/FFR/IDR from one actor will surface in PR audits and can trigger targeted enforcement without quarantining the entire repo.
+
+Signals:
+- **NFR** — Non-Failure Concealment Rate
+- **FFR** — File Fabrication Rate
+- **IDR** — Intentional Constraint Violation Rate (plan drift)
+- **AHR** — API Hallucination Rate (now distinguishes fabricated vs stale references using urlhealth-style verification)

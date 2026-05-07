@@ -51,7 +51,8 @@ export async function sync(slug, { cwd = process.cwd(), env = process.env } = {}
 
   const commits = commitsSince(state.lastSyncedSha, cwd);
   for (const commit of commits) {
-    await recordEvent(slug, "commit", commit, env);
+    const actorId = commit.author || "unknown";
+    await recordEvent(slug, "commit", { ...commit, actor_id: actorId }, env);
     try {
       const { evaluateTelemetry } = await import("./sidecar-bridge.mjs");
       await evaluateTelemetry(slug, {
@@ -61,7 +62,8 @@ export async function sync(slug, { cwd = process.cwd(), env = process.env } = {}
         linesOfCodeChanged: 0,
         testBytesChanged: 0,
         srcBytesChanged: 0,
-        newImports: []
+        newImports: [],
+        actor_id: actorId
       }, env);
     } catch {
       // Sidecar telemetry must not block local sync.

@@ -32,6 +32,17 @@ const matched = driftSmells.find(r => r.test(prompt));
 if (matched && !sessionWarned()) {
   console.error('[Anchor] drift smell detected in prompt: "' + matched.source.replace(/\\b/g,'') + '". Anchor will push back if this leads to scope creep or evasion.');
   markWarned();
+  // Contribute to IDR (intentional constraint violation / plan drift)
+  try {
+    const { recordEvent } = await import('../scripts/lib/trajectory.mjs');
+    const slug = process.cwd().split(path.sep).pop()?.replace(/[^a-z0-9._-]/gi, '_') || 'unknown';
+    await recordEvent(slug, 'drift-flag', {
+      source: 'prompt',
+      signal: 'IDR',
+      reason: matched.source,
+      actor_id: process.env.GIT_AUTHOR_EMAIL || 'session-user'
+    });
+  } catch {}
 }
 
 function sessionWarned() {

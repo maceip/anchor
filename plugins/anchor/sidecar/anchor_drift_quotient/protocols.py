@@ -26,6 +26,25 @@ class GitArtifactTelemetry:
     lines_of_code_changed: int
     new_imports: tuple[str, ...] = ()
     ci_log_payload: str = ""
+    # Per-actor deception & drift signals (populated from trajectory / tool logs)
+    actor_id: str = "unknown"
+    unreported_failures: int = 0
+    total_failures: int = 0
+    fabricated_files: int = 0
+    total_downloads: int = 0
+    unauthorized_switches: int = 0
+    total_reads: int = 0
+    hallucinated_answers: int = 0
+    downstream_tasks: int = 0
+    constraint_violations: int = 0
+    total_steps: int = 0
+    reference_urls: int = 0
+    non_resolving_reference_urls: int = 0
+    stale_reference_urls: int = 0
+    hallucinated_reference_urls: int = 0
+    # Production AHR from JS side (urlhealth style)
+    ahr: float = 0.0
+    ahr_breakdown: dict = field(default_factory=dict)
 
 
 class EvaluatorLLM(Protocol):
@@ -60,6 +79,7 @@ class DriftReport:
     metrics: dict[str, float]
     alarms: tuple[MetricAlarm, ...] = ()
     message: str = ""
+    ahr_breakdown: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {

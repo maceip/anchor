@@ -5,7 +5,7 @@
     "email": "anchor@maceip.dev"
   },
   "metadata": {
-    "description": "Anchor — anti-drift Cursor plugin that supervises a per-repo cloud agent.",
+    "description": "Anchor — unified anti-drift system with working dashboard, one-command onboarding, and production-grade hallucination detection (AHR + urlhealth).",
     "version": "0.1.0"
   },
   "plugins": [
