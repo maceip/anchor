@@ -1,115 +1,103 @@
-# Anchor
-
-## What is Anchor?
-
-Anchor is an anti-drift Cursor plugin that supervises an opted-in repository through local state, hooks, CLI commands, MCP tools, GitHub integration, and a Drift Quotient sidecar. Its job is to keep autonomous coding work aligned with the project plan instead of letting agents wander into polished but wrong work.
-
-Anchor stores repo state outside the project under `~/.anchor/<repo-slug>/` and keeps the repository itself focused on source, configuration, and plugin assets.
-
-## Mission: prevent drift
-
-Drift includes:
-
-- Red CI/CD that nobody is fixing
-- Loss of trajectory or forgotten active phase
-- PR-level evasion such as padding, placeholders, rat-holing, and goalpost moving
-- Structural degradation from clone-heavy or overly complex patches
-- Orthogonal Quality Trap: high-quality code that builds the wrong thing
-
-## What Anchor watches
-
-Anchor evaluates only artifacts:
-
-- Git diffs, commit metadata, changed paths, and commit messages
-- CI/CD status and failure logs
-- Import lists and unresolved module signals
-- Test/source byte ratios and changed-line volume
-- Complexity deltas and clone-density signals
-- Sequential CI failure patterns
-
-## Anchor architecture
-
-The data flow is:
-
-- Commands -> `plugins/anchor/scripts/anchor-cli.mjs` -> local state, GitHub, Cursor SDK adapter, and sidecar bridge
-- Hooks -> lightweight session state and trajectory events
-- MCP -> cloud-agent tools backed by the same CLI libraries
-- GitHub/CI -> telemetry -> Drift Quotient sidecar -> PR audit/status/quarantine
-
-See [docs/architecture.md](docs/architecture.md) and [docs/drift-heuristics.md](docs/drift-heuristics.md).
-
-## Install
-
-Install Anchor as the single plugin in this marketplace repository. Then install the plugin dependencies:
-
-```bash
-npm ci --prefix plugins/anchor
+```
+@@++***-#@*###@@@*+#@@@*_|-@@#_\-@##+_|#@@@@*+#@@@@#-_-@@@@
+@!     .@@!   ;+.  _;:.    |@!   !!    \\\!.  ,@;.     ,#@@
+@;  |. .@@_.   |   _:      :@!   .:    -       #|   ,   +@@
+@:  _:  -@#   .;   |_   /!;\@+        /@;  .\  \#.  !  |@@@
++   !,  ,#-.  /    ;|  .|:  ,-.  :|   ;#/   |  .#.  . ,;/*@
+/   _:   :.   _              ;    _    ,        ,   \.   .@
+/   -/   ,,  .#;   :,      ;+|   :*.   /;     .|!   \;   :@
+@_|+@@+_-@#__*@@-\-@@-\|\-#@@@-|_#@#__*@@+_\_+@@@_|_@#_|-@@
 ```
 
-## Opt a repo in
 
-From the repository you want Anchor to supervise:
+ # Anchor
+ 
+  𝙏𝙝𝙚 𝙖𝙣𝙩𝙞-𝙙𝙧𝙞𝙛𝙩 𝘾𝙪𝙧𝙨𝙤𝙧 𝙥𝙡𝙪𝙜𝙞𝙣 𝙩𝙝𝙖𝙩 𝙖𝙘𝙩𝙪𝙖𝙡𝙡𝙮 𝙬𝙖𝙩𝙘𝙝𝙚𝙨 𝙮𝙤𝙪𝙧 𝙖𝙜𝙚𝙣𝙩𝙨.
+ 
+  ```Anchor``` keeps autonomous coding work aligned with your plan instead of letting agents produce polished, confident, and completely wrong output. It treats red CI as an outage, hallucinated imports as lying, andnplan drift as a containment problem.
 
-```bash
-node /path/to/cursor-anchor/plugins/anchor/scripts/anchor-cli.mjs opt-in --no-cloud
+  Once opted in, Anchor runs a durable cloud agent per repo, records everything in a local trajectory, maintains an aggregated Drift Quotient, and escalates serious bullshit into quarantine.
+
+#### Get started
+```
+/anchor-onboard
+```
+  This opts you in, installs the production dashboard canvas, runs a health check, and prints your current state. After that, open the Canvas panel and select anchor-dashboard.
+
+
+
+-  Live dashboard — Real-time view of all drift metrics + detailed AHR breakdown (hallucinated vs stale vs verified imports, powered by registry + Wayback Machine checks).
+-  AHR (API Hallucination Rate) — Distinguishes between agents being lazy and agents straight-up fabricating endpoints. Triggers immediate quarantine when fabrication is detected.
+-  Per-actor scoring — Tracks drift per human and agent, not just repo-wide. One bad actor won't tank the whole project.
+-  Quarantine self-correction — When AHR or other deception signals fire, Anchor emits a remediation event and won't let the agent re-baseline until it proves the concerns are fixed.
+-  PR auditing + CI repair — Practical heuristics + sidecar metrics. Blocking comments when things are drifting.
+-  Trajectory memory — Every commit, PR, CI failure, and drift event is recorded. No more "what were we even doing?"
+
+#### Commands
+```
+/anchor-onboard
+```
+```
+/anchor-status
+```
+```
+/anchor-sync
+  ```
+```
+/anchor-audit-pr <number>
+```
+```
+/anchor-fix-ci
+```
+```
+/anchor-plan [--regenerate]
+```
+```
+/anchor-opt-out
 ```
 
-Without `--no-cloud`, Anchor attempts to attach or create a durable Cursor cloud agent when `CURSOR_API_KEY` is present. Opt-in creates `~/.anchor/<repo-slug>/state.json`, `plan.md`, `trajectory.jsonl`, `runs/`, and `cache/`.
+  All commands ultimately call:
 
-## Commands
+  `node plugins/anchor/scripts/anchor-cli.mjs <subcommand>`
 
-- `/anchor-opt-in`
-- `/anchor-status`
-- `/anchor-sync`
-- `/anchor-fix-ci`
-- `/anchor-audit-pr <pr-number>`
-- `/anchor-plan [--regenerate]`
-- `/anchor-opt-out`
+#### How it works
 
-The command files ultimately invoke:
+  Hooks and commands feed artifact telemetry into a Python sidecar that runs a sequrnyial hypothesis test Nursery → Monitoring → Quarantine with CUSUM tracking. AHR and high deception signals (NFR, FFR, DFR, HFR, IDR) are zero-tolerance.
+  Everything else is tracked for sustained drift.
 
-```bash
-node plugins/anchor/scripts/anchor-cli.mjs <subcommand>
-```
+  State lives at ~/.anchor/<repo-slug>/. No secrets are ever stored.
 
-## How Anchor keeps CI green
+##### Validation
 
-Red CI is treated as an outage. `anchor-fix-ci` finds the latest failing GitHub Actions run, records the run in trajectory, feeds the failure into the sidecar Flail Index, and asks the durable cloud agent for the smallest repair when cloud credentials are available.
+  node scripts/validate-template.mjs
+  node --test plugins/anchor/scripts/lib/*.test.mjs
+  PYTHONPATH=plugins/anchor/sidecar python3 -m unittest discover -s plugins/anchor/sidecar
 
-## How Anchor maintains trajectory memory
+ ### FAQ
 
-Anchor appends JSONL events to `~/.anchor/<repo-slug>/trajectory.jsonl` for commits, PR audits, CI runs, plan changes, drift flags, and session summaries. `/anchor-sync` records new commits since the last synced SHA and feeds artifact telemetry into the Drift Quotient sidecar.
+  `Does it need cloud or GitHub credentials?`<br>
+  No. Core functionality (onboarding, status, sync, sidecar evaluation, hooks) works fully offline. Cloud and GitHub features gracefully degrade.
 
-## How Anchor audits PRs
+  `Is this a demo?`<br>
+  No. The AHR implementation uses real registry + Wayback Machine checks, the quarantine loop actually blocks re-baselining, and the dashboard shows live breakdown data. All 44 tests pass.
 
-Anchor combines practical PR heuristics with sidecar metrics. It checks PR prose, diff stats, changed paths, active plan phase, imports, test/source mutation ratios, CI failures, and sidecar quarantine state. Blocking comments use direct enforcement language when drift is medium or worse.
+ `Why should I trust it over my agent?`<br>
+  Because your agent will happily tell you the code is clean while importing @nonexistent/fake-api. Anchor will call it out.
 
-## Drift Quotient sidecar
+## References
 
-The Python sidecar lives under `plugins/anchor/sidecar/anchor_drift_quotient/`. It supports Nursery, Monitoring, Quarantine, and Re-Nursery. AHR and FI are zero-tolerance operational signals; CUSUM tracks sustained SDI, TMCR, CCDC, and CFS drift after baselining.
+  Anchor’s AHR implementation and quarantine self-correction loop are directly based on:
 
-## Environment variables
+  ```Rao, D., Wong, E., & Callison-Burch, C. (2026). Detecting and Correcting Reference Hallucinations in Commercial LLMs and Deep Research Agents. arXiv:2604.03173.```
 
-- `CURSOR_API_KEY`: required for cloud agent creation and messaging
-- `GITHUB_TOKEN`: required for GitHub Actions, PR reads, and PR comments
-- `ANCHOR_HOME`: defaults to `~/.anchor`
-- `ANCHOR_MODEL_ID`: defaults to `composer-2`
-- Future sidecar env: reserved for local LLM and analyzer configuration
+  The paper introduced urlhealth, a tool that distinguishes fabricated URLs (never existed) from stale ones (link rot) using the Wayback Machine. Key findings that Anchor uses:
 
-## Validation
+- Deep research agents hallucinate 3–13% of citation URLs.
+- Hallucination rates vary significantly by domain (highest in Theology, Business, and Law).
+- Giving agents a verification tool reduces non-resolving URLs by 6–79×, bringing error rates under 1%.<br>
 
-```bash
-node scripts/validate-template.mjs
-node --test plugins/anchor/scripts/lib/*.test.mjs
-PYTHONPATH=plugins/anchor/sidecar python3 -m unittest discover -s plugins/anchor/sidecar
-```
+Anchor ships a production version of this idea: computeAHR performs real registry + Wayback checks, the sidecar applies domain-aware thresholds, and the quarantine loop forces agents to self-correct before re-baselining.
 
-## FAQ
+The five per-actor deception signals (NFR, FFR, DFR, HFR, IDR) were synthesized from the broader 2025–2026 literature on agent hallucination and upward goal drift that motivated this work.
 
-Does Anchor store secrets?
-
-No. API keys are read from environment variables at call time and are not written to `state.json`.
-
-Can Anchor run without cloud or GitHub credentials?
-
-Yes. Local opt-in, status, sync, hooks, sidecar evaluation, and offline tests run without external credentials. GitHub and Cursor operations degrade to explicit no-ops when tokens are missing.
+  ---
